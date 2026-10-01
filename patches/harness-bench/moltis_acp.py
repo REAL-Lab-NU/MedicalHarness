@@ -1,29 +1,8 @@
-"""Drive Moltis over ACP (JSON-RPC 2.0 on stdio), because its CLI agent entry point is a stub.
+"""Run Moltis through ACP over JSON-RPC 2.0 on standard input and output.
 
-WHY NOT `moltis agent`. The sibling `moltis.py` adapter shells out to `moltis agent --message ...
---session-id ... --timeout ...`. In the build we compiled (0.1.0, 20260902.03) that path is dead:
-`crates/cli/src/main.rs` routes `Commands::Agent` to `moltis_agents::runner::run_agent`, which is a
-stub that unconditionally bails with "run_agent requires a configured provider and tool registry; use
-run_agent_loop instead" -- no feature gate, no working variant. The flags it passes do not exist
-either; `moltis agent --help` offers only `--message` and `--thinking`. The only headless path linked
-into the binary is `moltis acp`, so that is what this adapter speaks.
-
-THE PROTOCOL, as established by probing the server (see moltis-acp-probe.py):
-    -> initialize   {protocolVersion: 1, clientCapabilities: {...}}
-    <- {protocolVersion, agentCapabilities, agentInfo: {name: "moltis", version}}
-    -> session/new  {cwd, mcpServers: []}          <- cwd is how the agent learns the workspace
-    <- {sessionId}
-    -> session/prompt {sessionId, prompt: [{type: "text", text}]}
-    <~ session/update notifications, streaming agent_message_chunk / agent_thought_chunk / tool calls
-    <- {stopReason: "end_turn"}                     <- the turn is over when this reply lands
-
-TOKEN ACCOUNTING. `[providers.openai].base_url` is rewritten to the usage proxy, the same way every
-other harness here is routed, so token counts and the HB_PIN_* sampling pins apply to this row too.
-
-RUNTIME DEFAULTS. The config this adapter copies must already carry the MedicalHarness overrides --
-Moltis ships `agent_timeout_secs = 600`, `agent_max_iterations = 25`, an empty exec allowlist with
-`approval_mode = "on-miss"`, and `sandbox.mode = "all"` with a read-only workspace mount. Any one of
-those turns every episode into a zero for reasons that have nothing to do with the scaffold.
+Each episode initializes the connection, creates a workspace session, and sends
+one prompt. Session updates provide assistant text, thought chunks and tool calls.
+Provider URLs route through the usage proxy for sampling and token accounting.
 """
 
 from __future__ import annotations
@@ -88,7 +67,7 @@ class MoltisAcpAdapter(BaseAdapter):
         if not source_config.is_file():
             return AdapterRunResult(ok=False, stderr=f"missing Moltis config: {source_config}")
 
-        # Per-episode config/data so concurrent slots cannot share session state or a sqlite file.
+        # Store configuration and session data in the episode sandbox.
         home = ctx.sandbox / ".moltis"
         cfg_dir, data_dir = home / "config", home / "data"
         cfg_dir.mkdir(parents=True, exist_ok=True)
@@ -107,7 +86,7 @@ class MoltisAcpAdapter(BaseAdapter):
         env.update(ctx.env)
         env["MOLTIS_CONFIG_DIR"] = str(cfg_dir)
         env["MOLTIS_DATA_DIR"] = str(data_dir)
-        # the binary links libzvec_c_api.so out of the cargo build tree
+        # Load shared libraries from the configured build directory.
         extra_lib = str(ctx.model_config.get("ld_library_path") or "")
         if extra_lib:
             env["LD_LIBRARY_PATH"] = extra_lib + ":" + env.get("LD_LIBRARY_PATH", "")
@@ -116,7 +95,7 @@ class MoltisAcpAdapter(BaseAdapter):
         log = ctx.sandbox / "moltis-acp.log"
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE, text=True, bufsize=1,
-                                errors="replace",  # a stray non-UTF-8 byte must not kill the reader
+                                errors="replace",  # Decode malformed UTF-8 with replacement characters.
                                 cwd=str(ctx.workspace), env=env)
 
         replies: dict[Any, dict] = {}
@@ -125,8 +104,7 @@ class MoltisAcpAdapter(BaseAdapter):
         stderr_lines: list[str] = []
 
         def pump_stderr() -> None:
-            # Streamed, not buffered until the end: when an episode hangs it is killed from outside,
-            # finish() never runs, and a buffered log is lost exactly when it is the only evidence.
+            # Flush standard error to the episode log as it arrives.
             err_log = ctx.sandbox / "moltis-stderr.log"
             with err_log.open("a", encoding="utf-8") as fh:
                 for line in proc.stderr:  # type: ignore[union-attr]
@@ -139,7 +117,7 @@ class MoltisAcpAdapter(BaseAdapter):
         def pump_stdout() -> None:
             try:
                 _pump_stdout_inner()
-            except Exception as exc:  # noqa: BLE001 - the thread dies silently otherwise
+            except Exception as exc:  # noqa: BLE001
                 pump_error.append(f"{type(exc).__name__}: {exc}")
 
         def _pump_stdout_inner() -> None:
@@ -157,9 +135,7 @@ class MoltisAcpAdapter(BaseAdapter):
                 if msg.get("method") == "session/update":
                     upd = ((msg.get("params") or {}).get("update") or {})
                     kind = upd.get("sessionUpdate")
-                    # `content` is a dict for message/thought chunks but a LIST of content blocks for
-                    # tool_call updates. Assuming the dict shape kills this reader on the agent's very
-                    # first tool call, and the turn then looks like a silent hang.
+                    # Message chunks use a content dictionary; tool updates use a block list.
                     content = upd.get("content")
                     if isinstance(content, dict):
                         text = content.get("text") or ""
@@ -179,8 +155,7 @@ class MoltisAcpAdapter(BaseAdapter):
             proc.stdin.write(json.dumps(obj) + "\n")  # type: ignore[union-attr]
             proc.stdin.flush()  # type: ignore[union-attr]
 
-        # Stage markers land on disk as they happen. Writing the log only at the end means a hang
-        # is indistinguishable from a slow model: there is nothing to look at while it is stuck.
+        # Append stage markers to the log during execution.
         def mark(stage: str) -> None:
             with log.open("a", encoding="utf-8") as fh:
                 fh.write(f"{time.strftime('%H:%M:%S')} {stage}\n")
@@ -206,8 +181,7 @@ class MoltisAcpAdapter(BaseAdapter):
             except OSError:
                 pass
             out = "".join(chunks)
-            # append: the stage markers written during the run are the only record of where a hang
-            # happened, and write_text would erase them at exactly the moment they matter
+            # Append the final result after the recorded stage markers.
             with log.open("a", encoding="utf-8") as fh:
                 fh.write(f"\n--- result ok={ok} err={err[:300]} ---\n"
                          f"--- agent message ({len(out)} chars) ---\n{out[:4000]}\n"

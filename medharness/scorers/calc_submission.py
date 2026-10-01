@@ -11,7 +11,7 @@ import json
 import re
 from typing import Any
 
-#: Classified failures, reported as their own outcome rather than folded into a zero score.
+#: Submission failures are reported as distinct outcome categories.
 NO_ANSWER = "no_answer"
 EMPTY_SUBMISSION = "empty_submission"
 INVALID_FORMAT = "invalid_response_format"
@@ -22,10 +22,9 @@ _VALUE_KEYS = ("value", "final_answer", "answer", "result")
 
 
 def _decode(text: str, start: str) -> Any | None:
-    """First substring from `start` onwards that parses, as JSON or as a Python literal.
+    """Return the first substring from ``start`` that parses as JSON or a Python literal.
 
-    Scans every occurrence rather than the first: prose containing a stray bracket must not poison a
-    payload that appears later in the same message.
+    Scan candidate starting positions in order to locate structured output within prose.
     """
     dec = json.JSONDecoder()
     for i, ch in enumerate(text):

@@ -1,11 +1,8 @@
-"""MedMCP-Calc deterministic scorer — replaces the official LLM judge. Pure, deterministic, no model calls.
+"""Deterministic scoring of MedTool calculator selection and values.
 
-Scores a model's structured answer against the task gold on three axes:
-  - selection: did it pick the right calculators?  (set-match precision/recall/F1, name-normalized)
-  - numeric value: |pred - gold| within tolerance (relative for big numbers, absolute for small)
-  - categorical value: canonical-normalized exact match (Grade 2 CRS == G2 == grade 2 == 2)
-  - abstain: a calculator the model abstained on (value=null) is NOT scored wrong if a needed variable is
-    genuinely absent — it is counted separately (abstentions), never as a fabricated wrong value.
+Selection uses normalized calculator-name matching for precision, recall and F1.
+Numeric values use relative and absolute tolerances. Categorical values use
+canonical exact matching. Null and empty values are counted as abstentions.
 """
 from __future__ import annotations
 
@@ -47,8 +44,8 @@ def norm_name(s: str) -> str:
 
 
 def names_match(a: str, b: str) -> bool:
-    """Two calculator names refer to the same calculator if their significant token sets substantially
-    overlap: one is (almost) a subset of the other, or Jaccard >= 0.45, or they share a distinctive acronym."""
+    """Match normalized calculator names by token containment, Jaccard overlap
+    of at least 0.45, or a shared distinctive calculator term."""
     A, B = _toks(a), _toks(b)
     if not A or not B:
         return False
@@ -69,8 +66,8 @@ def _num(x):
 
 
 def norm_cat(x) -> str:
-    """Canonical categorical token: 'Grade 2 CRS' / 'G2' / 'grade 2' / '2' -> '2'; 'Stage IA' -> 'a1' (sorted);
-    'Positive' -> 'positive'. Strips grade/stage/g prefixes, maps roman numerals, sorts residual tokens."""
+    """Normalize categorical values by removing grade prefixes, mapping Roman
+    numerals and sorting the remaining alphanumeric characters."""
     s = str(x).lower().strip()
     s = re.sub(r"\bg(?=\d)", "grade ", s)                  # 'g2' -> 'grade 2'
     s = re.sub(r"[^a-z0-9 ]", " ", s)
@@ -79,23 +76,27 @@ def norm_cat(x) -> str:
         if t in _STOPWORDS or t in ("crs", "icans", "irae", "ice"):
             continue
         toks.append(_ROMAN.get(t, t))
-    # split alnum like 'ia' -> letters+digits stay; sort for order-independence (2a == a2)
+    # Sort alphanumeric characters so that 2a and a2 have the same canonical form.
     flat = "".join(toks)
     return "".join(sorted(re.findall(r"[a-z0-9]", flat)))
 
 
 def _is_num_gold(g) -> bool:
-    """Gold is NUMERIC only if it is a number, or a string that is purely a number + optional unit
-    ('29 mL/min', '120.6', '5.3'). A graded/staged/worded gold ('Grade 2 CRS', '1000 mg every 12 hours')
-    is CATEGORICAL even though it contains digits."""
+    """Return whether gold is a number or a numeric string with an optional unit.
+
+    Values containing descriptive text use categorical scoring.
+    """
     if isinstance(g, (int, float)):
         return True
     return bool(re.match(r"^\s*-?\d+\.?\d*\s*[a-zA-Z%/.²]*\s*$", str(g)))
 
 
 def score_value(pred, gold, *, num_rel=0.02, num_abs=0.1):
-    """One calculator's value. Returns (correct: bool, kind, detail). Numeric gold -> tolerance; categorical
-    gold -> canonical match. pred=None/'' -> abstained (scored separately, never a fabricated wrong value)."""
+    """Return (correct, kind, detail) for one calculator value.
+
+    Numeric gold uses tolerance matching and categorical gold uses canonical
+    matching. Null and empty predictions are classified as abstentions.
+    """
     if pred is None or (isinstance(pred, str) and not pred.strip()):
         return (False, "abstain", "no value")
     if _is_num_gold(gold):
@@ -108,9 +109,9 @@ def score_value(pred, gold, *, num_rel=0.02, num_abs=0.1):
 
 
 def score_selection(pred_names, gold_required):
-    """precision / recall / F1 via greedy bipartite name-matching (names_match), not exact string equality."""
-    # selection is over DISTINCT calculator TYPES — a calculator applied at 6 time points is still ONE
-    # selection. required_calculators is the distinct gold; dedupe predicted names by normalized key.
+    """Compute precision, recall and F1 using greedy bipartite calculator-name matching."""
+    # Selection counts distinct calculator types across all time points.
+    # Deduplicate predictions by normalized name.
     seen, P = set(), []
     for n in (pred_names or []):
         k = norm_name(n)
@@ -120,8 +121,7 @@ def score_selection(pred_names, gold_required):
     if not G:
         return {"precision": 1.0, "recall": 1.0, "f1": 1.0, "matched": 0, "gold": 0}
     used_g, used_p, matched = set(), set(), 0
-    # PASS 1: exact normalized-name equality (keeps gold-vs-gold a perfect 1:1, no cross-matching of similar
-    # calculators). PASS 2: fuzzy names_match for model wording variants.
+    # Match exact normalized names first, then match remaining wording variants.
     for exact in (True, False):
         for pi, p in enumerate(P):
             if pi in used_p:
@@ -190,7 +190,7 @@ def score_task(pred, gold):
             correct += 1 if ok else 0
         rows.append({"calc": ca["name"][:40], "gold": ca["final_answer"], "pred": pv, "ok": ok, "kind": kind})
     value_acc = correct / scored if scored else 0.0
-    # utility = selection F1 * value accuracy (both must be right); abstentions excluded from value_acc
+    # Utility combines selection F1 and value accuracy. Value accuracy excludes abstentions.
     utility = round(sel["f1"] * value_acc, 3)
     return {"selection": sel, "value_accuracy": round(value_acc, 3), "n_correct": correct,
             "n_scored": scored, "n_abstained": abstained, "utility": utility, "rows": rows}

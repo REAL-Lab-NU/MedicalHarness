@@ -1,4 +1,4 @@
-"""Portable CLI, artifact export and deterministic oracle checks (no model/GPU)."""
+"""Portable CLI, task export and deterministic oracle checks using synthetic inputs."""
 from __future__ import annotations
 import importlib.util
 import json

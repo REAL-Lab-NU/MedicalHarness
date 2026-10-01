@@ -1,23 +1,16 @@
 #!/usr/bin/env python
-"""A stdio MCP shim that gives a harness Playwright's browser tools minus the JavaScript escape hatch.
+"""MCP proxy that enforces the MedWeb browser-action interface.
 
-WHY THIS EXISTS. healthadmin is scored from the state the agent leaves in the portal's single
-`portals_state` localStorage key. Upstream's arm contract declares `javascript: false` and `cdp: false`
-for the model, and our OpenClaw row enforces it with `browser.evaluateEnabled=false` -- an agent that
-can run JavaScript can write `agentActions` directly instead of clicking through the UI, which would
-turn the benchmark into "can you spell the answer into localStorage". Every harness that reaches the
-portal through Playwright MCP has to be held to the same line.
+The proxy removes JavaScript execution tools from ``tools/list`` and rejects
+their invocation through ``tools/call``. Agents interact with the portal UI,
+and the oracle grades the resulting portal state. Other requests and responses
+pass through to the Playwright MCP server.
 
-`@playwright/mcp` has no per-tool exclusion (only coarse `--caps`), so this process sits between the
-harness and the real server: it forwards everything untouched except that it drops the two JavaScript
-tools from `tools/list` and refuses `tools/call` for them. The harness therefore never sees them, and a
-model that invents the name anyway gets an error rather than an execution.
-
-Usage (as the MCP server command in a harness config):
+Usage as the MCP server command in a harness configuration:
 
     python scripts/mcp_browser_no_js.py --cdp-endpoint http://127.0.0.1:9232
 
-All arguments are passed through to `@playwright/mcp`.
+All arguments are passed to ``@playwright/mcp``.
 """
 
 from __future__ import annotations
@@ -29,7 +22,7 @@ import subprocess
 import sys
 import threading
 
-# The two tools that would let the agent write portal state instead of producing it by using the UI.
+# JavaScript execution tools excluded from the browser-action interface.
 BLOCKED = {"browser_evaluate", "browser_run_code_unsafe"}
 
 MCP_CLI = os.environ.get(
@@ -51,7 +44,7 @@ def main() -> int:
     )
     threading.Thread(target=_pump_stderr, args=(proc,), daemon=True).start()
 
-    # ids of tools/call requests we refused, so the reply can be synthesised without touching upstream
+    # Rejected tool-call request IDs receive local error responses.
     refused: dict[object, str] = {}
     lock = threading.Lock()
 

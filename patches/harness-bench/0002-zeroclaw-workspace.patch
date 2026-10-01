@@ -1,39 +1,23 @@
-Subject: Bind ZeroClaw 0.8 agent tool roots to the benchmark fixture
-
-Apply after 0001-medicalharness-runner-changes.patch.
-
-Observed on installed ZeroClaw 0.8.5 (2026-09-09): content_search with no
-path or path='.', plus shell pwd, use <config-dir>/agents/<alias>/workspace.
-Neither subprocess cwd nor ZEROCLAW_WORKSPACE changes that per-agent root.
-allowed_roots grants absolute-path access but does not choose the default.
-Bind each configured agent's workspace.path to the task fixture, preserving
-the existing TOML, provider rewrites, risk profiles, and legacy behavior.
-
-Verified with five model-free regression tests and a localhost canned-provider
-canary against the actual installed binary. No real model was called.
-Prior Qwen ZeroClaw runs used the uncorrected environment; successful absolute
-searches do not establish equivalence for relative-tool behavior. Corrected
-runs must carry this environment revision; rerun Qwen for strict comparison.
-
+diff --git a/src/harnessbench/adapters/zeroclaw.py b/src/harnessbench/adapters/zeroclaw.py
+index 74b599e..0e5146e 100644
 --- a/src/harnessbench/adapters/zeroclaw.py
 +++ b/src/harnessbench/adapters/zeroclaw.py
 @@ -1,5 +1,6 @@
  from __future__ import annotations
-
+ 
 +import json
  import os
  import re
  import shutil
-@@ -102,6 +103,43 @@
+@@ -97,6 +98,42 @@ def _safe_name(value: str) -> str:
      return re.sub(r"[^A-Za-z0-9_.-]+", "-", value).strip("-") or "x"
-
-
+ 
+ 
 +def _bind_agent_workspaces(text: str, data: dict, workspace: Path) -> str:
-+    """Bind 0.8 agent tool roots to the task, preserving the source TOML.
++    """Bind ZeroClaw 0.8 agent workspace paths to the task fixture.
 +
-+    In 0.8.5 both shell cwd and relative file-tool paths use the agent workspace,
-+    not subprocess cwd or ZEROCLAW_WORKSPACE. allowed_roots only grants access.
-+    """
++    Shell commands and relative file tools use this workspace.
++    Risk-profile allowed_roots controls access to additional paths."""
 +    agents = data.get("agents")
 +    if not isinstance(agents, dict):
 +        return text
@@ -68,12 +52,12 @@ runs must carry this environment revision; rerun Qwen for strict comparison.
  def _merge_user_config(
      user_config: Path,
      out_path: Path,
-@@ -149,6 +187,8 @@
+@@ -144,6 +181,8 @@ def _merge_user_config(
          text = _rewrite_provider_uris(
              text, data, proxy_base_url=proxy_base_url, proxy_routes_file=proxy_routes_file)
-
+ 
 +    text = _bind_agent_workspaces(text, data, workspace)
 +
-     # 0.8 dropped the top-level [autonomy] table; filesystem roots now live on the risk profile the
-     # agent references. Write whichever the config actually uses, so neither version gets a stale key.
+     # ZeroClaw 0.8 uses risk_profiles for filesystem roots; older configs use autonomy.
      uses_risk_profiles = isinstance(data.get("risk_profiles"), dict) and data["risk_profiles"]
+     if uses_risk_profiles:

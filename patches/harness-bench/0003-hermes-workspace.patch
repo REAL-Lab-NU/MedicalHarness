@@ -1,7 +1,8 @@
 diff --git a/src/harnessbench/adapters/hermes.py b/src/harnessbench/adapters/hermes.py
+index 9176dd6..b77637c 100644
 --- a/src/harnessbench/adapters/hermes.py
 +++ b/src/harnessbench/adapters/hermes.py
-@@ -109,10 +109,22 @@ def _merge_user_config(
+@@ -109,10 +109,20 @@ def _merge_user_config(
      user_config: Path,
      out_path: Path,
      *,
@@ -10,9 +11,7 @@ diff --git a/src/harnessbench/adapters/hermes.py b/src/harnessbench/adapters/her
      proxy_routes_file: Path | None = None,
  ) -> None:
      data = _load_yaml(user_config)
-+    # One-shot Hermes can initialize its tool environment from the profile home
-+    # even with subprocess cwd/--in set. Bind the local tool root explicitly;
-+    # relative reads and writes must address the benchmark fixture, not HOME.
++    # Bind Hermes relative tool paths to the benchmark workspace.
 +    terminal = data.get("terminal")
 +    if workspace is not None and (
 +        not isinstance(terminal, dict)
@@ -23,8 +22,8 @@ diff --git a/src/harnessbench/adapters/hermes.py b/src/harnessbench/adapters/her
 +        data["terminal"] = terminal
      routes: dict[str, dict[str, str]] = {}
      custom_providers = data.get("custom_providers")
-
-@@ -257,6 +269,7 @@ class HermesAgentAdapter(BaseAdapter):
+ 
+@@ -254,6 +264,7 @@ class HermesAgentAdapter(BaseAdapter):
          _merge_user_config(
              sandbox_user_config,
              merged_cfg,

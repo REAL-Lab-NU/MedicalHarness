@@ -1,8 +1,8 @@
 diff --git a/src/harnessbench/extract_proxy_trace.py b/src/harnessbench/extract_proxy_trace.py
-index 8d2d16a..12c3374 100644
+index 18f44f7..d5f2509 100644
 --- a/src/harnessbench/extract_proxy_trace.py
 +++ b/src/harnessbench/extract_proxy_trace.py
-@@ -68,6 +68,27 @@ def _split_anthropic_blocks(content: Any) -> tuple[str, list[dict[str, Any]]]:
+@@ -55,6 +55,14 @@ def _split_anthropic_blocks(content: Any) -> tuple[str, list[dict[str, Any]]]:
      return "\n".join(text_parts), results
  
  
@@ -10,27 +10,14 @@ index 8d2d16a..12c3374 100644
 +
 +
 +def _strip_harness_reminders(text: str) -> str:
-+    """Drop the ``<system-reminder>`` blocks Claude Code splices into user turns.
-+
-+    The extractor already discards ``role: "system"`` for every harness because
-+    a system prompt is scaffold text, not agent behaviour. Claude Code carries
-+    part of its scaffold text inside the *user* turn instead, as one or more
-+    ``<system-reminder>`` blocks prepended to the task prompt. Left in, a
-+    575-character reminder about commit attribution sits at the head of the
-+    task message, and the per-message elision the judge payload applies (head
-+    plus tail) then shows the judge the reminder and the answer-format footer
-+    while the question itself is what gets cut. Codex puts its equivalent
-+    (``<environment_context>``) in its own message, so its task prompt survives
-+    intact; the same policy has to apply to both for the judge to be reading
-+    the same thing.
-+    """
++    """Remove Claude Code system-reminder blocks from user turns in the grading trace."""
 +    return _HARNESS_REMINDER.sub("", text) if "<system-reminder>" in text else text
 +
 +
  def extract_request_messages_no_system(request_body: str) -> list[dict[str, str]]:
-     """解析 chat completions body，丢弃 system，仅保留 user/assistant（及 tool 若存在可跳过，通常在上游消息里）。
+     """Extract user, assistant and tool messages from a completion request.
  
-@@ -92,6 +113,8 @@ def extract_request_messages_no_system(request_body: str) -> list[dict[str, str]
+@@ -76,6 +84,8 @@ def extract_request_messages_no_system(request_body: str) -> list[dict[str, str]
          if role not in ("user", "assistant", "tool"):
              continue
          text, tool_results = _split_anthropic_blocks(m.get("content"))
@@ -39,16 +26,12 @@ index 8d2d16a..12c3374 100644
          if text or not tool_results:
              item: dict[str, str] = {"role": role, "content": text}
              if role == "tool" and m.get("tool_call_id"):
-@@ -401,7 +424,12 @@ def _agent_key(request_body: str) -> str:
+@@ -369,7 +379,8 @@ def _agent_key(request_body: str) -> str:
      except (json.JSONDecodeError, TypeError):
          return "unknown"
      messages = data.get("messages") or []
 -    sys_content = next((str(m.get("content", "")) for m in messages if m.get("role") == "system"), "")
-+    # Normalised, not str(): an Anthropic system prompt can arrive as a list of
-+    # text blocks on one round and as a plain string on the next, and str() of
-+    # the list starts with "[{'type': 'text', ...". The two spellings landed in
-+    # different buckets, so the second round diffed against nothing and the
-+    # task prompt was emitted to the judge twice.
++    # Normalize string and text-block system prompts before identifying the agent.
 +    sys_content = next((_normalize_content(m.get("content", "")) for m in messages if m.get("role") == "system"), "")
      return sys_content[:120]
  

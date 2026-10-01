@@ -1,7 +1,8 @@
 diff --git a/src/harnessbench/adapters/openclaw.py b/src/harnessbench/adapters/openclaw.py
+index 8b3e887..f9cf984 100644
 --- a/src/harnessbench/adapters/openclaw.py
 +++ b/src/harnessbench/adapters/openclaw.py
-@@ -20,6 +20,11 @@
+@@ -20,6 +20,11 @@ def _merge_user_config(
  ) -> None:
      data = json.loads(user_config.read_text(encoding="utf-8"))
      data.setdefault("agents", {}).setdefault("defaults", {})["workspace"] = str(workspace)
@@ -13,7 +14,7 @@ diff --git a/src/harnessbench/adapters/openclaw.py b/src/harnessbench/adapters/o
      if proxy_base_url and proxy_routes_file is not None:
          routes: dict[str, dict[str, str]] = {}
          providers = ((data.get("models") or {}).get("providers") or {})
-@@ -100,15 +105,12 @@
+@@ -100,15 +105,12 @@ class OpenClawAdapter(BaseAdapter):
          openclaw_home = isolated_home / ".openclaw"
          openclaw_home.mkdir(parents=True, exist_ok=True)
          # _sync_minimal_auth_state(openclaw_home, user_config)
@@ -30,7 +31,7 @@ diff --git a/src/harnessbench/adapters/openclaw.py b/src/harnessbench/adapters/o
              merged_cfg,
              proxy_base_url=str(ctx.env.get("HARNESSBENCH_LLM_PROXY_URL") or ""),
              proxy_routes_file=Path(ctx.env["HARNESSBENCH_LLM_PROXY_ROUTES"]) if ctx.env.get("HARNESSBENCH_LLM_PROXY_ROUTES") else None,
-@@ -134,7 +136,7 @@
+@@ -134,7 +136,7 @@ class OpenClawAdapter(BaseAdapter):
              env["OPENCLAW_AGENT_WORKSPACE_DIR"] = str(ctx.workspace.resolve())
          completed = subprocess.run(
              cmd,

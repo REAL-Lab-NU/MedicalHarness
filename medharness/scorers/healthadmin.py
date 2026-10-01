@@ -1,7 +1,7 @@
 """Deterministic MedWeb checks on final portal state.
 
 Process/outcome rules follow HealthAdminBench commit
- e71a8f4d6923037805b7f51fbbf608d12ea56cf5. No model judge is called.
+e71a8f4d6923037805b7f51fbbf608d12ea56cf5.
 """
 from __future__ import annotations
 
@@ -589,7 +589,7 @@ def score_task_deterministic(
     task: Mapping[str, Any],
     final_state: Mapping[str, Any],
 ) -> dict[str, Any]:
-    """Score deterministic checks without serializing gold or patient values."""
+    """Return deterministic check scores with gold and patient values kept outside serialized results."""
 
     deterministic = {"process": [0, 0, 0.0, 0.0], "outcome": [0, 0, 0.0, 0.0]}
     judge_count = 0

@@ -1,4 +1,4 @@
-"""Deterministic end-to-end wiring smoke: no real model or medical data."""
+"""End-to-end execution smoke test using scripted responses and a synthetic task."""
 from __future__ import annotations
 import json
 from pathlib import Path

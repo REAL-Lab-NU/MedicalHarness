@@ -1,21 +1,14 @@
-"""Deterministic, alias-aware scorer for the MedMemoryBench long-context final set.
+"""Deterministic, alias-aware scoring for MedMemory answers.
 
-Two matching modes are always computed and both are reported:
+The primary ``exact`` metric compares the normalized extracted answer with
+accepted aliases. The ``containment`` metric reports upstream-compatible
+substring matching after alphanumeric normalization.
 
-* ``exact``       normalized exact match of the extracted answer against any accepted alias.
-                  Headline metric.  Robust to "shotgun" outputs that list many candidates,
-                  including candidates hidden inside parentheses.
-* ``containment`` upstream/v1-compatible: alphanumeric-only gold contained anywhere in the
-                  alphanumeric-only output.  Reported for comparability only.  It is lenient by
-                  construction (drops decimal points, signs and range dashes; a shotgun output
-                  satisfies it), so it is never the headline.
-
-``normalize_presentation`` removes presentation variance only: case, whitespace, markdown /
-quote wrappers, list bullets, terminal punctuation, leading hedges, dash and hyphen glyphs,
-digit-unit spacing, ``per`` -> ``/``, and parentheticals that carry no alternative or novel
-value.  It never removes or reorders content words, never converts number words or units, and
-never collapses superscript exponents into plain digits.  Aliases are extended only through a
-recorded adjudication (``alias_adjudications.json`` next to the final set), never here.
+``normalize_presentation`` standardizes case, whitespace, wrappers, punctuation,
+hedges, dash glyphs, digit-unit spacing and ``per`` notation. It removes
+parentheticals that contain neither an alternative marker nor a new value.
+Normalization preserves content words, word order, number words, units and
+explicit exponent notation. Accepted aliases are supplied in the task package.
 """
 from __future__ import annotations
 
@@ -83,7 +76,7 @@ def _strip_parentheticals(text: str) -> str:
         text = "".join(out).strip()
         if text == prev:
             break
-        # a kept parenthetical must not be re-examined as if it were new
+        # Stop when every retained parenthetical contains an alternative or a new value.
         if all(_ALT_PAREN.match(m.group(1)) or (set(_NUM.findall(m.group(1))) - set(_NUM.findall(text[: m.start()] + text[m.end():]))) for m in _PAREN.finditer(text)):
             break
     return text
@@ -108,7 +101,7 @@ def normalize_presentation(value: Any) -> str:
 
 
 def normalize_alnum(value: Any) -> str:
-    """v1 direct-eval compatible: NFKD, lowercase, alphanumerics only.  Deliberately unchanged."""
+    """Normalize with NFKD, lowercase and alphanumeric filtering for containment scoring."""
     text = unicodedata.normalize("NFKD", str(value or "")).lower()
     return "".join(ch for ch in text if ch.isalnum())
 

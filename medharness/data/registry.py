@@ -1,7 +1,8 @@
-"""One loader, one schema, one gold sidecar and one leak guard for the four benchmark packages.
+"""Shared schema and loaders for the four benchmark task packages.
 
-Solver-visible: ``samples.jsonl`` (id, input, target, metadata with the nine reserved keys, files,
-setup, sandbox).  Scorer/environment-only: ``gold.jsonl`` (id, gold, hidden, env_private).  Exporters keep gold outside the model workspace; scorers fetch it by sample id.
+``samples.jsonl`` holds model-visible task records. ``gold.jsonl`` holds
+scorer and environment references. Exporters keep gold outside the model
+workspace, and scorers retrieve it by sample ID.
 """
 from __future__ import annotations
 
@@ -19,10 +20,8 @@ REPO = ROOT.parents[1]
 RESERVED = ("bench", "axis", "version", "upstream", "target_kind", "limits", "env", "floor", "descriptors")
 AXES = {"healthadmin": "interaction_recovery", "calc": "tool_use", "healthagent": "file_artifact_handling", "memory": "long_term_memory"}
 TARGET_KINDS = {"healthadmin": "outcome_checks_descriptive", "calc": "multi_output_json", "healthagent": "reward_scalar", "memory": "answer_aliases"}
-#: Packages whose samples and gold are upstream-derived. They live in the package directory like every
-#: other benchmark, so one path loads all four, but their payloads are gitignored by name and only the
-#: manifest, which carries their content hashes, is tracked. The environment variable still overrides,
-#: for a machine that keeps the data elsewhere.
+#: External task packages use an environment-variable override or the default data directory.
+#: Tracked manifests record the hashes of the separately supplied samples and gold.
 DATA_ROOT_ENV = {"memory": ("MEDMEMORY_DATA_ROOT", ROOT / "memory")}
 
 
@@ -57,7 +56,7 @@ def load_manifest(bench: str) -> dict[str, Any]:
 
 
 def verify(bench: str) -> dict[str, Any]:
-    """Fail closed: files present and content hashes equal to the manifest."""
+    """Verify that package files exist and match the manifest hashes."""
     s = spec(bench)
     man = load_manifest(bench)
     missing = [str(p) for p in (s.samples_path, s.gold_path) if not p.is_file()]
@@ -86,7 +85,7 @@ def subset_ids(bench: str) -> list[str] | None:
 
 
 def load_gold(bench: str) -> dict[str, dict[str, Any]]:
-    """Scorer/env-only.  Never pass the result to a solver or render it into a prompt."""
+    """Load gold references for scorer and environment use outside the model workspace."""
     s = spec(bench)
     out: dict[str, dict[str, Any]] = {}
     with s.gold_path.open(encoding="utf-8") as f:

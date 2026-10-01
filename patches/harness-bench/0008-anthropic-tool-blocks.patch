@@ -1,29 +1,16 @@
 diff --git a/src/harnessbench/extract_proxy_trace.py b/src/harnessbench/extract_proxy_trace.py
-index 758be54..d602775 100644
+index 758be54..8e688f4 100644
 --- a/src/harnessbench/extract_proxy_trace.py
 +++ b/src/harnessbench/extract_proxy_trace.py
-@@ -28,8 +28,53 @@ def _normalize_content(content: Any) -> str:
+@@ -28,8 +28,37 @@ def _normalize_content(content: Any) -> str:
      return str(content)
  
  
 +def _split_anthropic_blocks(content: Any) -> tuple[str, list[dict[str, Any]]]:
-+    """Separate an Anthropic content list into its text and its tool results.
++    """Separate Anthropic text blocks from tool results.
 +
-+    In the OpenAI shapes a tool result arrives as its own ``role: "tool"``
-+    message, which this extractor keeps. Anthropic's ``/v1/messages`` instead
-+    carries it as a ``tool_result`` block inside the *user* turn, and
-+    ``_normalize_content`` keeps only blocks with a ``text`` key, so every tool
-+    result used to vanish and the turn collapsed to an empty string. The
-+    process judge then saw a run with no tool use at all and scored every
-+    dimension zero, on every benchmark, for any harness speaking that protocol.
-+
-+    Returning the results separately lets the caller re-emit them as
-+    ``role: "tool"`` messages, which is the same view the OpenAI path already
-+    produces. ``tool_use`` blocks are deliberately not rendered into the
-+    assistant text: the OpenAI path drops the assistant's ``tool_calls`` from
-+    the request messages too, and the two protocols have to reach the judge
-+    looking alike or the comparison measures the extractor.
-+    """
++    Tool results become role="tool" messages. Assistant tool_use blocks are
++    handled by the response parser."""
 +    if not isinstance(content, list):
 +        return _normalize_content(content), []
 +    text_parts: list[str] = []
@@ -48,16 +35,13 @@ index 758be54..d602775 100644
 +
  def extract_request_messages_no_system(request_body: str) -> list[dict[str, str]]:
 -    """解析 chat completions body，丢弃 system，仅保留 user/assistant（及 tool 若存在可跳过，通常在上游消息里）。"""
-+    """解析 chat completions body，丢弃 system，仅保留 user/assistant（及 tool 若存在可跳过，通常在上游消息里）。
++    """Extract user, assistant and tool messages from a completion request.
 +
-+    Anthropic ``tool_result`` blocks are lifted out of their user turn and
-+    re-emitted as ``role: "tool"`` messages so both protocols reach the process
-+    judge in the same shape.
-+    """
++    Anthropic tool_result blocks become separate role="tool" messages."""
      try:
          data = json.loads(request_body)
      except json.JSONDecodeError:
-@@ -46,11 +91,20 @@ def extract_request_messages_no_system(request_body: str) -> list[dict[str, str]
+@@ -46,19 +75,27 @@ def extract_request_messages_no_system(request_body: str) -> list[dict[str, str]
              continue
          if role not in ("user", "assistant", "tool"):
              continue
@@ -82,4 +66,15 @@ index 758be54..d602775 100644
 +            out.append(result)
      return out
  
+ 
+ def parse_sse_response(response_text: str) -> tuple[str, list[dict[str, Any]]]:
+-    """
+-    解析 OpenAI 兼容的 SSE：拼接 assistant 文本，合并 tool_calls（按 index）。
+-    返回 (assistant_text, tool_calls)，其中 tool_calls 每项含 name、arguments（解析为 object 失败则为原字符串）。
+-    """
++    """Parse streamed assistant text and tool calls from OpenAI or Anthropic events.
++
++    Each tool call contains a name and arguments, parsed as JSON when valid."""
+     buffers: dict[int, dict[str, Any]] = {}
+     assistant_parts: list[str] = []
  

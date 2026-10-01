@@ -50,7 +50,7 @@ medicalharness bootstrap
 medicalharness smoke
 ```
 
-The smoke test uses a synthetic task and a scripted local model service. It exercises MH-Lab, the request proxy, file tools, and deterministic scoring. No GPU or model download is needed.
+The smoke test runs on CPU with a synthetic task and scripted model responses. It exercises MH-Lab, the request proxy, file tools, and deterministic scoring.
 
 ### Run a benchmark task
 

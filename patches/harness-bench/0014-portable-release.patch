@@ -1,6 +1,8 @@
+diff --git a/src/harnessbench/adapters/agent_isolation.py b/src/harnessbench/adapters/agent_isolation.py
+index 1da4c10..3b7ae84 100644
 --- a/src/harnessbench/adapters/agent_isolation.py
 +++ b/src/harnessbench/adapters/agent_isolation.py
-@@ -49,16 +49,16 @@
+@@ -47,16 +47,16 @@ def isolate_agent_command(ctx: AdapterRunContext, command: list[str], env: dict[
      if not bwrap:
          raise RuntimeError("HB_AGENT_ISOLATION=1 requires bubblewrap; refusing unisolated execution")
  
@@ -20,8 +22,8 @@
 +    hide = [repo]
      hide += [account_home / name for name in (".codex", ".claude", ".openclaw", ".zeroclaw", ".hermes")]
      hide += _json_paths(settings, "HB_AGENT_ISOLATION_HIDE_PATHS")
-     # Task definitions include oracle modules and may contain gold. Fixtures have
-@@ -76,9 +76,8 @@
+     # Hide task definitions and oracles after fixtures are copied into the sandbox.
+@@ -73,9 +73,8 @@ def isolate_agent_command(ctx: AdapterRunContext, command: list[str], env: dict[
      runtime_paths = [
          repo / ".venv",
          repo / "scripts/mcp_browser_no_js.py",
@@ -33,14 +35,15 @@
          account_home / ".hermes/hermes-agent",
          account_home / ".hermes/bin",
          account_home / ".hermes/node",
+diff --git a/src/harnessbench/usage_proxy.py b/src/harnessbench/usage_proxy.py
+index fc1af7e..5bfd245 100644
 --- a/src/harnessbench/usage_proxy.py
 +++ b/src/harnessbench/usage_proxy.py
-@@ -315,6 +315,13 @@
+@@ -311,6 +311,12 @@ class _UsageProxyHandler(BaseHTTPRequestHandler):
              for k, v in self.headers.items()
              if k.lower() not in {"host", "accept-encoding", "content-length"}
          }
-+        # Optional authenticated local/remote upstream, supplied by the launcher.
-+        # The credential is never written into generated product config files.
++        # Add upstream authentication supplied by the launcher environment.
 +        api_key = os.environ.get("MEDHARNESS_UPSTREAM_API_KEY")
 +        if api_key:
 +            headers = {k: v for k, v in headers.items() if k.lower() not in {"authorization", "x-api-key"}}
@@ -49,7 +52,7 @@
          if self.command in {"POST", "PUT", "PATCH"}:
              headers["Content-Length"] = str(len(body))
          req = Request(target, data=body if self.command in {"POST", "PUT", "PATCH"} else None, headers=headers, method=self.command)
-@@ -374,7 +381,7 @@
+@@ -370,7 +376,7 @@ class _UsageProxyHandler(BaseHTTPRequestHandler):
              "path": remainder,
              "method": self.command,
              "status": status,

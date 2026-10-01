@@ -26,12 +26,9 @@ HAB = Path(os.environ.get("HEALTHAGENTBENCH_ROOT", str(REPO / "vendor/HealthAgen
 COMPOSE_DIR = REPO / "medharness" / "data" / "healthagent" / "fixtures" / "compose"
 OUT_ROOT = Path(os.environ.get("MEDHARNESS_TASKS_ROOT", str(REPO / "tasks")))
 PREFIX = "medagent"
-# Inputs mounted outside /workspace (a 2.3 GB whole-slide image, for one family) are extracted once
-# to this shared read-only root instead of into fixtures, which harness-bench copies per run.
+# Extract inputs mounted outside /workspace once to a shared read-only root.
 EXTERNAL_ROOT = Path(os.environ.get("HEALTHAGENT_EXTERNAL_ROOT", str(REPO / "assets/healthagent-external"))).resolve()
-# One family's verifier fetches its CAMELYON16 ground-truth mask over the network at scoring time.
-# The masks are pre-downloaded here once and mounted at the cache root the verifier already checks
-# before downloading, so scoring stays offline and does not re-fetch 322 MB on every pass.
+# Cache CAMELYON16 verifier masks once and mount them at the upstream cache path.
 VERIFIER_CACHES = {
     "tumor_area_selection_pathology": (
         Path(os.environ.get("HEALTHAGENT_VERIFIER_CACHE", str(REPO / "assets/tumor-verifier-cache"))).resolve(),
@@ -152,11 +149,9 @@ def _image_for(task: str) -> str:
 
 
 def _external_mounts(compose: Path) -> list[str]:
-    """Container paths the `main` service mounts outside /workspace (named volumes only).
+    """Return named-volume mounts outside ``/workspace`` for the main service.
 
-    One family stages a 2.3 GB whole-slide image at /data/slide/current this way. Copying that into
-    fixtures would mean re-copying it into every sandbox on every run, so it is extracted once to a
-    shared root and the prompt is pointed there instead.
+    Large shared inputs are extracted once and referenced by their host paths.
     """
     out: list[str] = []
     in_main = in_volumes = False
@@ -263,7 +258,7 @@ def main() -> int:
         fixtures = task_dir / "fixtures"
         try:
             mapping = _materialise(upstream, fixtures, EXTERNAL_ROOT / upstream)
-        except Exception as exc:  # noqa: BLE001 - report and continue; one bad task must not stop 27
+        except Exception as exc:  # noqa: BLE001 - report the task error and continue exporting the remaining tasks
             shutil.rmtree(task_dir, ignore_errors=True)
             failed.append((task_id, upstream, f"{type(exc).__name__}: {exc}"))
             print(f"{task_id} ({upstream}): FAILED {exc}")

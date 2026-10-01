@@ -1,9 +1,10 @@
-"""Mechanism tests for scripts/harness/run_langgraph_harness.py with a scripted fake model.
+"""Mechanism tests for the MH-Lab LangGraph harness using scripted responses.
 
-No GPU: a local OpenAI-compatible server plays the model, and a local proxy stand-in records every
-request body the harness sends, so the tests check what the model would actually see.
-Run with the SDK environment:
-  python -m pytest -q tests/test_langgraph_harness.py
+A local OpenAI-compatible server supplies responses, and a local proxy records
+request bodies for assertions on the model-visible context.
+
+Run with:
+    python -m pytest -q tests/test_langgraph_harness.py
 """
 from __future__ import annotations
 
@@ -332,8 +333,7 @@ def test_tier2_recall_returns_the_original(tmp_path):
 
 
 def test_tier4_elides_before_it_summarizes(tmp_path):
-    # Elision alone holds the history under the hard threshold for a while (the paper's cheapest
-    # tier); only once the stubs and assistant turns themselves accumulate does summarization run.
+    # Elision runs first. Summarization follows when retained turns and stubs reach its threshold.
     fake = FakeModel(elision_script(24) + [('text', 'Done.')])
     try:
         proc, manifest, events, workspace, sandbox = run_harness(tmp_path, fake, ['--planning', 'off', '--context-policy', 'elide_then_summarize'])
@@ -393,9 +393,8 @@ def test_bash_timeout_kills_the_process_tree_and_logs_are_off_limits(tmp_path):
 
 
 def test_counts_survive_a_deadline_kill(tmp_path):
-    # A model that never stops calling tools; the 60 s CLI deadline is what ends the episode... too slow
-    # for a test, so we use a tiny window with policy none: the run ends on context_overflow after a few
-    # turns, and the manifest written before termination must carry the counters.
+    # A small context window ends the scripted tool loop with context_overflow.
+    # The manifest retains the counters recorded before termination.
     script = [('calls', [('bash', {'command': "head -c 3000 /dev/zero | tr '\\0' x"})]) for _ in range(6)]
     fake = FakeModel(script)
     try:

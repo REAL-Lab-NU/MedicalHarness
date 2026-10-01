@@ -29,7 +29,7 @@ def dump(path, value):
 
 
 def bootstrap(destination, source=HB_REMOTE):
-    """Create a fresh pinned checkout; never modify an existing upstream tree."""
+    """Create a fresh checkout at the pinned upstream revision."""
     destination = Path(destination).resolve()
     if destination.exists():
         raise FileExistsError(f'{destination} exists; choose an empty --destination')

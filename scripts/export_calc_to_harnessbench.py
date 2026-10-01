@@ -178,7 +178,7 @@ def main() -> int:
             shutil.rmtree(task_dir)
         fixtures.mkdir(parents=True)
 
-        # the same fixture our own arms build, from the same gold env_private
+        # Build the SQLite fixture from the task package environment data.
         build_fixture(gold[sid].get("env_private") or {},
                       str((sample.metadata.get("descriptors") or {}).get("patient_id") or "PATIENT"),
                       fixtures / "patient_facts.sqlite")

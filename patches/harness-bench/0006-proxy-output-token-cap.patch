@@ -1,6 +1,8 @@
+diff --git a/src/harnessbench/usage_proxy.py b/src/harnessbench/usage_proxy.py
+index 8e470ce..26e73be 100644
 --- a/src/harnessbench/usage_proxy.py
 +++ b/src/harnessbench/usage_proxy.py
-@@ -161,6 +161,65 @@
+@@ -157,6 +157,65 @@ def _pin_sampling(body: bytes) -> bytes:
      return json.dumps(payload).encode("utf-8")
  
  
@@ -66,7 +68,7 @@
  def _lookup_route(routes_file: Path, path: str) -> tuple[str, dict[str, Any], str] | None:
      routes = _read_json(routes_file)
      best_prefix = ""
-@@ -231,6 +290,7 @@
+@@ -227,6 +286,7 @@ class _UsageProxyHandler(BaseHTTPRequestHandler):
  
          if self.command == "POST" and body:
              body = _pin_sampling(body)
@@ -74,11 +76,11 @@
  
          headers = {
              k: v
-@@ -346,6 +406,7 @@
+@@ -342,6 +402,7 @@ class _UsageProxyServer(ThreadingHTTPServer):
  
  class UsageProxy(AbstractContextManager["UsageProxy"]):
      def __init__(self, routes_file: Path, log_file: Path, raw_dir: Path, task_id: str, session_id: str, model_id: str):
-+        _output_token_limit()  # Fail before opening a listener on invalid configuration.
++        _output_token_limit()  # Validate configuration before opening the listener.
          self.routes_file = routes_file
          self.log_file = log_file
          self.server = _UsageProxyServer(

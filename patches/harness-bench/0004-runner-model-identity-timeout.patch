@@ -1,7 +1,8 @@
 diff --git a/src/harnessbench/runner.py b/src/harnessbench/runner.py
+index 49a63d3..d4be3bf 100644
 --- a/src/harnessbench/runner.py
 +++ b/src/harnessbench/runner.py
-@@ -90,8 +90,13 @@
+@@ -90,8 +90,13 @@ def _last_response_model_from_proxy_log(log_file: Path) -> str | None:
  def _cli_model_from_adapter_command(command: Any) -> str | None:
      if not isinstance(command, list):
          return None
@@ -16,10 +17,10 @@ diff --git a/src/harnessbench/runner.py b/src/harnessbench/runner.py
              m = str(command[i + 1]).strip()
              return m or None
      return None
-@@ -562,10 +567,15 @@
-                 # missing measurement. Letting the exception escape drops the task from the results
-                 # entirely, which silently censors exactly the slowest harnesses -- so grade whatever
-                 # the agent left in the workspace and record the timeout in the metadata instead.
+@@ -558,10 +563,15 @@ def run_task(app: AppConfig, task: TaskSpec, model_id: str, model_cfg: dict[str,
+                 adapter_result = adapter.run(ctx)
+             except subprocess.TimeoutExpired as exc:
+                 # Record the timeout and grade artifacts present in the workspace.
 +                def partial_text(value: Any) -> str:
 +                    return value.decode("utf-8", errors="replace") if isinstance(value, bytes) else (value or "")
 +

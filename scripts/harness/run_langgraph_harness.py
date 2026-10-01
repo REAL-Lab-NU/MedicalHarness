@@ -1,35 +1,34 @@
 #!/usr/bin/env python3
-"""MedicalHarness modular harness: a fixed LangGraph ReAct loop with switchable components.
+"""MH-Lab: a fixed LangGraph ReAct loop with switchable components.
 
-The outer harness-bench runner owns the workspace, isolation, usage proxy and
-grading. This process registers a proxy route, executes the graph until the
-model answers without tool calls, and leaves produced files in the workspace.
-It never reads gold or falls back to a direct upstream connection.
+The harness-bench runner supplies the workspace, isolation, usage proxy and
+scoring. This process registers a proxy route and executes the graph until the
+model returns a final answer or reaches an execution limit. Task outputs stay
+in the workspace. Gold references remain outside the process, and all model
+requests use the proxy.
 
-Components (defaults: P on, C `summarize`, A `tools`):
-  P  update_plan tool + planning protocol block + first-turn reminder + per-turn plan injection.
-     OFF removes all four; the plan never enters the persistent history.
-  C  context policy, the paper's tiers:  none (T0) | elide (T1) | elide_recall (T2) |
-     summarize (T3) | elide_then_summarize (T4).  Elision replaces bulky tool observations in the
-     middle region (outside the preamble and the recent window) with a short stub; recall stores the
-     originals and exposes recall_event(id); summarization folds the oldest complete turn blocks into
-     a running summary by a tool-free call to the same model. Single-mechanism tiers act at
-     --summary-trigger; T4 elides at --elide-trigger and summarizes at --summary-trigger. `none`:
-     full history; an input that cannot fit ends the episode with termination_reason=context_overflow.
-  A  action space: `tools` (read_file, write_file, edit_file, list_files, glob_files, grep_text,
-     bash) or `bash` (bash only, with the bash-only system prompt). Auxiliary tools of enabled
-     components (update_plan, recall_event) stay in either.
-  B  tool bridge (default off): the task tools are not in the request's tool array; the model
-     sees tool_search (name/description matches for a query), tool_describe (one full schema) and
-     tool_call (invoke a hidden tool by name with a JSON arguments object). Auxiliary component
-     tools (update_plan, recall_event) stay visible. Same tools, same executor, indirect access.
-  V  verification (default off): when the model ends its turn, the harness checks that every
-     file the task prompt names under out/ or submission/ exists and is non-empty; if one is
-     missing it injects one reminder naming the files and lets the loop continue. One reminder
-     per episode; the check never writes anything itself.
+Components:
+  P  Planning exposes update_plan, planning instructions, a first-turn reminder
+     and the current plan on each request. Disabling P removes all four.
+  C  Context policy selects none, elide, elide_recall, summarize or
+     elide_then_summarize. Elision replaces large middle-history observations
+     with stubs. Recall exposes their stored originals through recall_event.
+     Summarization replaces the oldest complete turn blocks with a running
+     summary from the same model. Single policies use --summary-trigger.
+     The combined policy uses --elide-trigger followed by --summary-trigger.
+     The none policy retains full history until the input budget is exceeded.
+  A  Action space selects file tools plus bash, or bash alone. Enabled planning
+     and recall tools remain available in both modes.
+  B  Tool bridge replaces direct task-tool exposure with tool_search,
+     tool_describe and tool_call. Planning and recall tools remain visible.
+     The underlying task tools and executors stay the same.
+  V  Verification checks that output files named in the task prompt exist and
+     are non-empty. Missing files trigger one reminder per episode before the
+     model continues.
 
-Everything the model sees is reconstructable from usage-proxy request bodies; this process also
-writes events.jsonl (append-only), context-transforms.jsonl and langgraph-manifest.json.
+Defaults are planning on, context summarization, file tools, tool bridge off
+and verification off. Proxy request bodies record the model-visible context.
+The harness writes events.jsonl, context-transforms.jsonl and langgraph-manifest.json.
 """
 from __future__ import annotations
 
@@ -52,15 +51,15 @@ from typing import Any, TypedDict
 from urllib.parse import urlsplit
 
 # ----------------------------------------------------------------------------------------------
-# Fixed substrate constants (recorded in the manifest; identical in every condition)
+# Fixed execution constants recorded in the manifest
 # ----------------------------------------------------------------------------------------------
-TOOL_RESULT_MAX_CHARS = 24_000        # paper: tool results truncated to 24k characters
+TOOL_RESULT_MAX_CHARS = 24_000        # Tool results are truncated to 24k characters.
 READ_DEFAULT_LIMIT = 2000
 READ_MAX_BYTES = 4_000_000
 STUCK_REMIND_AT = 5                    # identical calls (any status) or identical failing calls
 STUCK_STOP_AT = 8                      # identical failing calls
 STUCK_REPEAT_STOP_AT = 15              # identical calls of any status after the reminder was ignored
-MAX_STEPS = 500                        # framework protection only; the study budget is time
+MAX_STEPS = 500                        # Graph recursion limit. The wall-clock deadline sets the episode budget.
 BASH_DEFAULT_TIMEOUT = 120
 BASH_MAX_TIMEOUT = 600
 DENIED_COMMANDS = ('rm -rf', 'sudo ', 'git push', 'git reset --hard', 'chmod -R', 'chown -R', 'mkfs', 'shutdown', 'reboot')
@@ -192,13 +191,13 @@ You have called `{TOOL}` with the SAME arguments {N} times. You're not making pr
 already have this result. Move on to the next concrete step instead of repeating it.
 </system-reminder>"""
 
-# Allowlist of Playwright MCP actions in browser mode (same list as the Deep Agents entry).
+# Allowlist of Playwright MCP actions in browser mode.
 BROWSER_TOOLS = frozenset({
     'browser_navigate', 'browser_navigate_back', 'browser_snapshot', 'browser_click',
     'browser_type', 'browser_fill_form', 'browser_select_option', 'browser_press_key',
     'browser_hover', 'browser_drag', 'browser_wait_for', 'browser_tabs',
     'browser_handle_dialog', 'browser_resize',
-})   # browser_close is omitted: the browser is attached over CDP and closing it is not a task action
+})   # Keep the externally managed CDP browser open across tool calls.
 
 
 # ----------------------------------------------------------------------------------------------
@@ -497,8 +496,7 @@ class Workspace:
                 raise ToolError(f'command denied: `{token}` is the episode\'s own record, not task material')
         timeout = min(max(int(timeout_seconds or BASH_DEFAULT_TIMEOUT), 1), BASH_MAX_TIMEOUT)
         timeout = max(1, min(timeout, int(self.deadline.remaining())))
-        # The shell runs in its own session so that a timeout kills its whole process tree, not
-        # only the shell; a command that forks a long job cannot outlive its tool call.
+        # A separate process session lets a timeout terminate the shell and its child processes.
         proc = subprocess.Popen(['/bin/sh', '-c', command], cwd=workdir, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 text=True, errors='replace', start_new_session=True,
                                 env={**os.environ, 'HOME': os.environ.get('HOME', str(self.root))})
@@ -629,8 +627,10 @@ class State(TypedDict, total=False):
 
 
 class Harness:
-    """Holds the raw history, the context policy, the tools and the model client; the LangGraph
-    nodes are thin methods over it so the state passed between nodes stays small and serialisable."""
+    """Store history, context policy, tools and the model client.
+
+    LangGraph nodes share this object and pass compact serializable state.
+    """
 
     def __init__(self, args, base_url, sandbox, log, manifest):
         from langchain_core.messages import SystemMessage, HumanMessage
@@ -648,8 +648,8 @@ class Harness:
         self.model = ChatOpenAI(**kwargs)
         self.tool_schemas: list[dict] = []
         self.mcp_tools: dict[str, Any] = {}
-        # Raw history: the persistent, append-only trajectory. Each entry is one LangChain message plus
-        # bookkeeping. Plan reminders and stuck reminders are per-request injections, never stored here.
+        # Raw history stores LangChain messages and bookkeeping in an append-only trajectory.
+        # Plan and loop reminders are added separately to each request.
         self.history: list[dict] = []
         self.summary: dict | None = None       # {'text', 'covered_through', 'version'}
         self.chars_per_token = DEFAULT_CHARS_PER_TOKEN
@@ -712,7 +712,7 @@ class Harness:
             self.log.emit('browser_tools', allowed=sorted(self.mcp_tools), excluded=[t.name for t in tools if t.name not in BROWSER_TOOLS])
         self.hidden_schemas: dict[str, dict] = {}
         if self.args.tool_bridge == 'on':
-            # The task tools go behind the bridge; the model-facing array carries only the bridge.
+            # The request exposes bridge tools for discovering and invoking task tools.
             self.hidden_schemas = {t['function']['name']: t for t in self.tool_schemas}
             self.tool_schemas = bridge_tool_schemas()
             self.bridge_discovered: set[str] = set()
@@ -725,7 +725,7 @@ class Harness:
         self.manifest['hidden_tool_names'] = sorted(self.hidden_schemas)
 
     async def run_tool(self, name: str, arguments: dict, via_bridge: bool = False) -> tuple[str, bool]:
-        """Returns (observation, is_error). Never raises for model-caused errors."""
+        """Return (observation, is_error), including input errors as tool observations."""
         try:
             if self.args.tool_bridge == 'on' and name in ('tool_search', 'tool_describe', 'tool_call'):
                 return await self.run_bridge(name, arguments)
@@ -778,8 +778,7 @@ class Harness:
         except asyncio.TimeoutError:
             return 'error: tool call exceeded the episode deadline', True
         except Exception as exc:
-            # A malformed argument (wrong type, unexpected shape) is the model's error, not the
-            # harness's: it is returned as an observation the model can correct.
+            # Return malformed arguments as tool observations for the next model turn.
             self.log.emit('tool_exception', tool=name, error=f'{type(exc).__name__}: {exc}')
             return f'error: {type(exc).__name__}: {exc}', True
 
@@ -894,13 +893,15 @@ class Harness:
         self.log.transform(kind='summary', version=version, covered_event_ids=source_ids, covered_through=covered_through,
                            estimated_tokens_before=est, estimated_tokens_after=after, summary_chars=len(text), summary=text)
         if after > self.input_budget:
-            # More old blocks may remain; loop once more before giving up.
+            # Summarize remaining old blocks if the input still exceeds the budget.
             return await self.maybe_summarize() if len(old) > len(selected) else 'context_overflow'
         return None
 
     def elide_middle(self, est: int) -> int:
-        """Replace bulky tool observations outside the protected recent window with stubs (M1), keeping
-        the originals in the external store (M2 when recall is on). Returns the new estimate."""
+        """Replace large middle-history observations with stubs and store their originals.
+
+        The recall tool exposes stored observations when enabled. Return the new token estimate.
+        """
         blocks = self.turn_blocks(self.visible_history())
         keep, kept_chars = 0, 0
         for block in reversed(blocks):
@@ -1016,8 +1017,7 @@ class Harness:
             return {'turn': turn, 'termination': 'empty_output', 'final_text': content}
         missing = self.missing_files()
         if missing and self.verification_reminders == 0:
-            # V: the model stopped without the artefact the task names. One reminder, then the
-            # loop continues; the model must write the file itself.
+            # Verification adds one reminder when a final answer leaves required output files missing.
             self.verification_reminders += 1
             self.pending_reminders.append(VERIFICATION_REMINDER.format(FILES='\n'.join(f'  {self.args.workspace / rel}' for rel in missing)))
             self.log.emit('verification_reminder', missing=missing, turn=turn)
@@ -1055,8 +1055,7 @@ class Harness:
         return {'termination': None}
 
     def persist_counts(self, turn: int):
-        """Write the running counters into the manifest now, so a deadline kill or a crash leaves
-        the usage, summary and plan counts of the episode so far rather than nothing."""
+        """Persist current usage, summary and planning counters in the episode manifest."""
         self.manifest.update(turns=turn, requests=self.requests, usage=dict(self.usage),
                              plan_created=self.plan is not None, plan_updates=self.plan_updates,
                              summary_versions=(self.summary or {}).get('version', 0),
@@ -1125,8 +1124,7 @@ class Harness:
             self.log.emit('stuck_stop', tool=name, streak=s['n'], failing=s['failing'])
             return 'stuck'
         if s['n'] >= STUCK_REPEAT_STOP_AT:
-            # The same call with the same arguments keeps succeeding and the reminder changed
-            # nothing: the model is no longer reading its results.
+            # Stop after repeated identical calls reach the configured limit.
             self.log.emit('stuck_stop', tool=name, streak=s['n'], failing=s['failing'], kind='repeat')
             return 'stuck_repeat'
         if not s['reminded'] and (s['failing'] >= STUCK_REMIND_AT or s['n'] >= STUCK_REMIND_AT):
@@ -1169,7 +1167,7 @@ async def run(args, base_url, sandbox, log, manifest):
                     elided_events=len(harness.elided), recall_calls=harness.recall_calls,
                     summary_versions=(harness.summary or {}).get('version', 0), chars_per_token=round(harness.chars_per_token, 3))
     log.emit('episode_terminated', reason=final.get('termination'), turns=final.get('turn', 0))
-    # stdout is diagnostic only; it is never copied into a scored artefact.
+    # stdout carries execution diagnostics. Scoring reads task output files.
     print(json.dumps({'status': 'completed', 'termination_reason': final.get('termination'), 'final_message': final.get('final_text')}, ensure_ascii=False))
     return final
 

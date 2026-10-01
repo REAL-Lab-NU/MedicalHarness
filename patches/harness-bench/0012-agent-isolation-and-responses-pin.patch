@@ -1,14 +1,14 @@
 diff --git a/src/harnessbench/adapters/agent_isolation.py b/src/harnessbench/adapters/agent_isolation.py
 new file mode 100644
-index 0000000..68370db
+index 0000000..1da4c10
 --- /dev/null
 +++ b/src/harnessbench/adapters/agent_isolation.py
-@@ -0,0 +1,146 @@
-+"""Opt-in filesystem isolation of agent subprocesses, never fixtures or graders.
+@@ -0,0 +1,141 @@
++"""Filesystem isolation for agent subprocesses and their child tools.
 +
-+This deployment hides benchmark repositories, old episode artifacts, and global
-+agent memories, then exposes only this episode and its runtime configuration.
-+It deliberately shares localhost networking for the model proxy and browser CDP.
++Benchmark sources, episode artifacts and global agent memories are hidden.
++The episode sandbox and configured runtime paths remain available.
++Localhost networking is shared for the model proxy and browser CDP.
 +"""
 +from __future__ import annotations
 +
@@ -40,13 +40,11 @@ index 0000000..68370db
 +
 +
 +def isolate_agent_command(ctx: AdapterRunContext, command: list[str], env: dict[str, str]) -> list[str]:
-+    """Wrap only a final native-agent spawn; disabled preserves its exact command.
++    """Wrap an agent command with filesystem isolation when HB_AGENT_ISOLATION=1.
 +
-+    Scheduler contract: HB_AGENT_ISOLATION=1, optional JSON arrays
-+    HB_AGENT_ISOLATION_HIDE_PATHS and HB_AGENT_ISOLATION_ALLOW_PATHS.
-+    ALLOW paths are read-only. The current sandbox is the sole writable exception
-+    inside hidden benchmark trees. Child tools/MCP processes inherit the mounts.
-+    """
++    HB_AGENT_ISOLATION_HIDE_PATHS and HB_AGENT_ISOLATION_ALLOW_PATHS accept
++    JSON path arrays. Allowed paths are read-only. The episode sandbox remains
++    writable. Child tools inherit the mounts, and localhost networking is shared."""
 +    settings = dict(env)
 +    settings.update(ctx.env)
 +    if settings.get("HB_AGENT_ISOLATION", "0") != "1":
@@ -67,11 +65,10 @@ index 0000000..68370db
 +    hide = [repo, bench, scratch]
 +    hide += [account_home / name for name in (".codex", ".claude", ".openclaw", ".zeroclaw", ".hermes")]
 +    hide += _json_paths(settings, "HB_AGENT_ISOLATION_HIDE_PATHS")
-+    # Task definitions include oracle modules and may contain gold. Fixtures have
-+    # already been copied into the sandbox by the outer, unrestricted runner.
++    # Hide task definitions and oracles after fixtures are copied into the sandbox.
 +    if ctx.task.task_dir is not None:
 +        hide.append(ctx.task.task_dir.resolve().parent)
-+    # Mask canonical targets too, so a symlink spelling cannot reveal the source.
++    # Include resolved symlink targets in the hidden paths.
 +    hide = _existing(hide + [p.resolve() for p in hide])
 +    hide = [p for p in hide if not any(_within(p, earlier) for earlier in hide if earlier != p and len(earlier.parts) < len(p.parts))]
 +    if any(p == Path("/") or p == sandbox or _within(p, sandbox) for p in hide):
@@ -102,8 +99,7 @@ index 0000000..68370db
 +            source = Path.cwd() / source
 +        if source.is_file():
 +            allow.append(source.parent)
-+    # Claude's generic_cli wrapper loads its sibling mcp.json. Bind this private
-+    # config directory, not the entire scheduler tree or the registry's siblings.
++    # Bind the Claude wrapper directory containing its sibling mcp.json.
 +    if ctx.model_config.get("adapter") == "generic_cli" or ctx.model_config.get("framework") == "claude-code":
 +        executable = Path(command[0])
 +        if executable.is_absolute() and executable.is_file() and any(_within(executable, p) for p in hide):
@@ -118,8 +114,7 @@ index 0000000..68370db
 +            # These paths are already visible through the unchanged host tree.
 +            continue
 +
-+    # A normal bind makes inherited device mounts nodev; Claude's Bun runtime
-+    # aborts on startup in that setup. Preserve the host device tree explicitly.
++    # Preserve device mounts required by the Claude Code Bun runtime.
 +    prefix = [bwrap, "--bind", "/", "/", "--dev-bind", "/dev", "/dev", "--unshare-pid", "--proc", "/proc",
 +              "--die-with-parent", "--new-session", "--tmpfs", "/tmp"]
 +    for path in hide:
@@ -151,7 +146,7 @@ index 0000000..68370db
 +    (sandbox / "agent-isolation.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 +    return [*prefix, *command]
 diff --git a/src/harnessbench/adapters/codex.py b/src/harnessbench/adapters/codex.py
-index 2b00581..5b31bf5 100644
+index b57b523..a2bb2b5 100644
 --- a/src/harnessbench/adapters/codex.py
 +++ b/src/harnessbench/adapters/codex.py
 @@ -13,6 +13,7 @@ from typing import Any, TextIO
@@ -162,7 +157,7 @@ index 2b00581..5b31bf5 100644
  
  
  def _project_root() -> Path:
-@@ -561,7 +562,7 @@ class CodexAdapter(BaseAdapter):
+@@ -554,7 +555,7 @@ class CodexAdapter(BaseAdapter):
          print(f"[harnessbench:codex] stderr_log={stderr_log_file}", flush=True)
  
          proc = subprocess.Popen(
@@ -193,7 +188,7 @@ index ef4cabd..69748dd 100644
              text=True,
              capture_output=True,
 diff --git a/src/harnessbench/adapters/hermes.py b/src/harnessbench/adapters/hermes.py
-index daa6323..445a3c4 100644
+index b77637c..887c426 100644
 --- a/src/harnessbench/adapters/hermes.py
 +++ b/src/harnessbench/adapters/hermes.py
 @@ -9,6 +9,7 @@ from pathlib import Path
@@ -204,7 +199,7 @@ index daa6323..445a3c4 100644
  
  
  def _project_root() -> Path:
-@@ -311,7 +312,7 @@ class HermesAgentAdapter(BaseAdapter):
+@@ -306,7 +307,7 @@ class HermesAgentAdapter(BaseAdapter):
          env["HERMES_CONFIG_PATH"] = str(merged_cfg)
  
          completed = subprocess.run(
@@ -214,7 +209,7 @@ index daa6323..445a3c4 100644
              text=True,
              capture_output=True,
 diff --git a/src/harnessbench/adapters/openclaw.py b/src/harnessbench/adapters/openclaw.py
-index 5a5e13f..240500e 100644
+index 868c4a1..f881358 100644
 --- a/src/harnessbench/adapters/openclaw.py
 +++ b/src/harnessbench/adapters/openclaw.py
 @@ -9,6 +9,7 @@ from pathlib import Path
@@ -225,7 +220,7 @@ index 5a5e13f..240500e 100644
  
  
  def _merge_user_config(
-@@ -138,7 +139,7 @@ class OpenClawAdapter(BaseAdapter):
+@@ -136,7 +137,7 @@ class OpenClawAdapter(BaseAdapter):
          if bool(ctx.model_config.get("use_gateway")):
              env["OPENCLAW_AGENT_WORKSPACE_DIR"] = str(ctx.workspace.resolve())
          completed = subprocess.run(
@@ -235,7 +230,7 @@ index 5a5e13f..240500e 100644
              text=True,
              capture_output=True,
 diff --git a/src/harnessbench/adapters/zeroclaw.py b/src/harnessbench/adapters/zeroclaw.py
-index f636ed7..6ad1e68 100644
+index 0e5146e..9fb7d55 100644
 --- a/src/harnessbench/adapters/zeroclaw.py
 +++ b/src/harnessbench/adapters/zeroclaw.py
 @@ -11,6 +11,7 @@ from pathlib import Path
@@ -246,7 +241,7 @@ index f636ed7..6ad1e68 100644
  
  
  def _project_root() -> Path:
-@@ -300,7 +301,7 @@ class ZeroClawAdapter(BaseAdapter):
+@@ -293,7 +294,7 @@ class ZeroClawAdapter(BaseAdapter):
          env["ZEROCLAW_SESSION_ID"] = ctx.session_id
  
          completed = subprocess.run(
@@ -256,7 +251,7 @@ index f636ed7..6ad1e68 100644
              text=True,
              capture_output=True,
 diff --git a/src/harnessbench/usage_proxy.py b/src/harnessbench/usage_proxy.py
-index 616e365..04d8da4 100644
+index 161a282..fc1af7e 100644
 --- a/src/harnessbench/usage_proxy.py
 +++ b/src/harnessbench/usage_proxy.py
 @@ -133,7 +133,7 @@ def _extract_payload(decoded_text: str, response_headers: list[tuple[str, str]])
@@ -265,10 +260,10 @@ index 616e365..04d8da4 100644
  
 -def _pin_sampling(body: bytes) -> bytes:
 +def _pin_sampling(body: bytes, path: str = "") -> bytes:
-     """Force sampling parameters onto an outbound completion request.
+     """Fill omitted sampling fields from HB_PIN_TEMPERATURE, HB_PIN_TOP_P and HB_PIN_SEED.
  
-     Product harnesses do not all expose temperature/seed (OpenClaw exposes neither), so one run of one
-@@ -153,7 +153,8 @@ def _pin_sampling(body: bytes) -> bytes:
+     Fields supplied by the harness take precedence. Unset environment variables
+@@ -149,7 +149,8 @@ def _pin_sampling(body: bytes) -> bytes:
          payload = json.loads(body)
      except (ValueError, UnicodeDecodeError):
          return body
@@ -278,7 +273,7 @@ index 616e365..04d8da4 100644
          return body
      for key, raw in pins.items():
          if raw is None or key in payload:
-@@ -306,7 +307,7 @@ class _UsageProxyHandler(BaseHTTPRequestHandler):
+@@ -302,7 +303,7 @@ class _UsageProxyHandler(BaseHTTPRequestHandler):
              body = self.rfile.read(int(content_length))
  
          if self.command == "POST" and body:

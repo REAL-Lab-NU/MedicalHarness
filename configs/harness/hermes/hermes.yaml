@@ -1,10 +1,5 @@
-# Hermes Agent config for the MedicalHarness study — the keys that differ from a fresh `hermes` install.
-# This is the whole per-endpoint file the harness-bench hermes adapter loads via harness.yaml
-# "user_config"; the adapter rewrites providers.vllm.base_url (and model.base_url) to the usage proxy at
-# episode start. Replace __VLLM_PORT__ per endpoint.
-#
-# Invocation used by the study: hermes --yolo --in {workspace} -z   (-z is one-shot; the adapter accepts
-# -q/--query/-z/--oneshot and defaults to -z).
+# Hermes Agent runtime profile. The adapter routes provider requests through
+# the usage proxy and launches a one-shot session in the episode workspace.
 
 model:
   base_url: http://127.0.0.1:__VLLM_PORT__/v1
@@ -20,11 +15,11 @@ providers:
     models:
     - qwen36-35b-a3b-260k
     name: Local vLLM
-    # Uniform 1800s request timeout across every harness in the study.
+    # Provider request timeout in seconds.
     request_timeout_seconds: 1800
 
 agent:
-  # Turn budget in the same band as the other harnesses (nanobot/claudecode 200, openclaw/codex unbounded).
+  # Maximum turns per episode.
   max_turns: 500
   reasoning_effort: medium
   verbose: false
@@ -42,9 +37,7 @@ tool_loop_guardrails:
   hard_stop_enabled: false
   non_interactive_hard_stop_enabled: true
 
-# Hermes ships a native `browser` toolset; the study did NOT use it for healthadmin. Every non-OpenClaw
-# harness got the same Playwright MCP instead (see hermes-healthadmin.append.yaml) so that column compares
-# scaffolds, not browser implementations.
+# Native browser extension settings.
 browser:
   extension_control:
     enabled: false

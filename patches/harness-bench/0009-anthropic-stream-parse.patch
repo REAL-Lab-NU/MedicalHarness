@@ -1,26 +1,14 @@
 diff --git a/src/harnessbench/extract_proxy_trace.py b/src/harnessbench/extract_proxy_trace.py
-index d602775..8d2d16a 100644
+index 8e688f4..18f44f7 100644
 --- a/src/harnessbench/extract_proxy_trace.py
 +++ b/src/harnessbench/extract_proxy_trace.py
-@@ -108,10 +108,52 @@ def extract_request_messages_no_system(request_body: str) -> list[dict[str, str]
+@@ -92,6 +92,33 @@ def extract_request_messages_no_system(request_body: str) -> list[dict[str, str]
      return out
  
  
 +def _anthropic_stream_event(event: dict[str, Any], buffers: dict[int, dict[str, Any]],
 +                            assistant_parts: list[str]) -> None:
-+    """Fold one ``/v1/messages`` stream event into the same buffers the OpenAI path fills.
-+
-+    An Anthropic stream has no ``choices``: text arrives as ``content_block_delta``
-+    events of type ``text_delta`` and a tool call as a ``content_block_start`` naming
-+    the tool, followed by ``input_json_delta`` fragments of its arguments, all keyed
-+    by content-block ``index``. Before this the parser read only ``choices[0].delta``,
-+    so every round of a Claude Code episode yielded an empty assistant text and no
-+    tool calls; the process judge then saw bare tool results with nothing that
-+    called them and scored whatever visible prose the model happened to add --
-+    zero for a model that emits none, a fraction for a chattier one. That is a
-+    property of verbosity, not of process, and it is why the same episodes carried
-+    the block's best outcome and a process score of 0.
-+    """
++    """Accumulate Anthropic streamed text and tool arguments by content-block index."""
 +    kind = event.get("type")
 +    if kind == "content_block_start":
 +        block = event.get("content_block")
@@ -46,16 +34,9 @@ index d602775..8d2d16a 100644
 +
 +
  def parse_sse_response(response_text: str) -> tuple[str, list[dict[str, Any]]]:
-     """
-     解析 OpenAI 兼容的 SSE：拼接 assistant 文本，合并 tool_calls（按 index）。
-     返回 (assistant_text, tool_calls)，其中 tool_calls 每项含 name、arguments（解析为 object 失败则为原字符串）。
-+
-+    Anthropic ``/v1/messages`` streams are folded into the same result; see
-+    ``_anthropic_stream_event``.
-     """
-     buffers: dict[int, dict[str, Any]] = {}
-     assistant_parts: list[str] = []
-@@ -128,6 +170,8 @@ def parse_sse_response(response_text: str) -> tuple[str, list[dict[str, Any]]]:
+     """Parse streamed assistant text and tool calls from OpenAI or Anthropic events.
+ 
+@@ -111,6 +138,8 @@ def parse_sse_response(response_text: str) -> tuple[str, list[dict[str, Any]]]:
              continue
          choices = event.get("choices")
          if not isinstance(choices, list) or not choices:
@@ -64,7 +45,7 @@ index d602775..8d2d16a 100644
              continue
          ch0 = choices[0] if isinstance(choices[0], dict) else {}
          delta = ch0.get("delta")
-@@ -171,7 +215,29 @@ def parse_sse_response(response_text: str) -> tuple[str, list[dict[str, Any]]]:
+@@ -154,7 +183,29 @@ def parse_sse_response(response_text: str) -> tuple[str, list[dict[str, Any]]]:
      return merged_text, tool_calls
  
  
@@ -94,7 +75,7 @@ index d602775..8d2d16a 100644
      choices = response_json.get("choices")
      if not isinstance(choices, list) or not choices:
          return "", []
-@@ -207,12 +273,12 @@ def parse_response_record(raw: dict[str, Any]) -> tuple[str, list[dict[str, Any]
+@@ -190,12 +241,12 @@ def parse_response_record(raw: dict[str, Any]) -> tuple[str, list[dict[str, Any]
          if text.strip() or tools:
              return text, tools
      rj = raw.get("response_json")

@@ -1,4 +1,5 @@
 diff --git a/src/harnessbench/runner.py b/src/harnessbench/runner.py
+index d4be3bf..67260df 100644
 --- a/src/harnessbench/runner.py
 +++ b/src/harnessbench/runner.py
 @@ -1,6 +1,7 @@
@@ -9,19 +10,13 @@ diff --git a/src/harnessbench/runner.py b/src/harnessbench/runner.py
  import re
  import subprocess
  import shutil
-@@ -164,6 +165,43 @@
+@@ -164,6 +165,37 @@ def derive_api_result_slug(
      return "unknown-api", ""
  
  
 +
-+# ---------------------------------------------------------------------------
-+# Submission check (HB_SUBMISSION_CHECK=1): a deterministic artifact check with
-+# one follow-up round. The task prompt names the files an answer must be written
-+# to ("$WORKSPACE/out/answer.txt", "$WORKSPACE/submission/x.csv"); when the last
-+# prompt round ends without one of them, the harness session is resumed once with
-+# a short reminder. Off by default so recorded studies are unchanged; the outcome
-+# of the check is written to the adapter result metadata either way.
-+# ---------------------------------------------------------------------------
++# HB_SUBMISSION_CHECK=1 enables one reminder round for missing output files.
++# Check results are recorded in adapter metadata.
 +_SUBMISSION_PATH_RE = re.compile(r"\$WORKSPACE/((?:out|submission)/[\w.\-]+(?:/[\w.\-]+)*)")
 +
 +
@@ -53,7 +48,7 @@ diff --git a/src/harnessbench/runner.py b/src/harnessbench/runner.py
  def render_prompt_file(task: TaskSpec, prompt_name: str, workspace: Path, runtime_env: dict[str, str], adapter_name) -> str:
      assert task.task_dir is not None
      prompt_template = (task.task_dir / prompt_name).read_text(encoding="utf-8")
-@@ -602,6 +640,37 @@
+@@ -598,6 +630,37 @@ def run_task(app: AppConfig, task: TaskSpec, model_id: str, model_cfg: dict[str,
                              runtime_env[key] = value
              if not adapter_result.ok:
                  break
