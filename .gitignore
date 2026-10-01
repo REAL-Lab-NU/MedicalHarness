@@ -1,0 +1,40 @@
+__pycache__/
+*.pyc
+.venv/
+logs/
+*.eval
+.medmemory-official-eval/
+.healthadminbench-eval/
+external/
+*.egg-info/
+.pytest_cache/
+
+# Private record text and answer material are provided separately.
+medharness/data/memory/samples.jsonl
+medharness/data/memory/gold.jsonl
+
+# Local dependencies, execution artifacts, and release build products.
+vendor/
+runs/
+build/
+dist/
+.ruff_cache/
+.env
+.env.*
+!.env.example
+medharness/data/memory/fixtures/
+node_modules/
+/tasks/
+.cache/
+.DS_Store
+
+# Manuscripts, analysis, and website sources are maintained outside this code checkout.
+/paper/
+/results/
+/analysis/
+/site/
+/docs/design/
+/docs/research/
+/docs/reviews/
+/docs/studies/
+/tools/package_arxiv.py

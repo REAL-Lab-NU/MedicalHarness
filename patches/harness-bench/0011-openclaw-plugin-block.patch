@@ -1,0 +1,20 @@
+diff --git a/src/harnessbench/adapters/openclaw.py b/src/harnessbench/adapters/openclaw.py
+index f9cf984..5a5e13f 100644
+--- a/src/harnessbench/adapters/openclaw.py
++++ b/src/harnessbench/adapters/openclaw.py
+@@ -48,10 +48,13 @@ def _merge_user_config(
+     # wiring so isolated OPENCLAW_HOME does not fail validation on missing local installs.
+     data["channels"] = {}
+     plugins = data.get("plugins")
+-    if isinstance(plugins, dict):
++    # A source config that names its own plugin paths is purpose-built for the run (the
++    # harness-component ablation loads a context engine this way); its plugin block is
++    # kept verbatim. Anything else is user wiring and is cleared as before, minus
++    # `installs`, which the 2026.9 config schema rejects as an unknown key.
++    if isinstance(plugins, dict) and not (plugins.get("load") or {}).get("paths"):
+         plugins["allow"] = []
+         plugins["entries"] = {}
+-        plugins["installs"] = {}
+     data.pop("wizard", None)
+     out_path.parent.mkdir(parents=True, exist_ok=True)
+     out_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")

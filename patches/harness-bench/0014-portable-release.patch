@@ -1,0 +1,60 @@
+--- a/src/harnessbench/adapters/agent_isolation.py
++++ b/src/harnessbench/adapters/agent_isolation.py
+@@ -49,16 +49,16 @@
+     if not bwrap:
+         raise RuntimeError("HB_AGENT_ISOLATION=1 requires bubblewrap; refusing unisolated execution")
+ 
+-    repo = Path(settings.get("MEDHARNESS_REPO", "/data/ios4132/projects/MedicalHarness")).resolve()
+-    bench = repo.parent / "MedicalHarness-bench"
+-    scratch = Path("/scr/ios4132/medharness")
++    if not settings.get("MEDHARNESS_REPO"):
++        raise ValueError("MEDHARNESS_REPO must identify the evaluator checkout when isolation is enabled")
++    repo = Path(settings["MEDHARNESS_REPO"]).resolve()
+     account_home = Path(pwd.getpwuid(os.getuid()).pw_dir)
+     sandbox = ctx.sandbox.resolve()
+     workspace = ctx.workspace.resolve()
+     if not _within(workspace, sandbox):
+         raise ValueError("Agent workspace must be inside its episode sandbox")
+ 
+-    hide = [repo, bench, scratch]
++    hide = [repo]
+     hide += [account_home / name for name in (".codex", ".claude", ".openclaw", ".zeroclaw", ".hermes")]
+     hide += _json_paths(settings, "HB_AGENT_ISOLATION_HIDE_PATHS")
+     # Task definitions include oracle modules and may contain gold. Fixtures have
+@@ -76,9 +76,8 @@
+     runtime_paths = [
+         repo / ".venv",
+         repo / "scripts/mcp_browser_no_js.py",
+-        scratch / "bin",
+-        scratch / "lib",
+-        scratch / "mcp/node_modules",
++        repo / "node_modules",
++        repo / "scripts/harness",
+         account_home / ".hermes/hermes-agent",
+         account_home / ".hermes/bin",
+         account_home / ".hermes/node",
+--- a/src/harnessbench/usage_proxy.py
++++ b/src/harnessbench/usage_proxy.py
+@@ -315,6 +315,13 @@
+             for k, v in self.headers.items()
+             if k.lower() not in {"host", "accept-encoding", "content-length"}
+         }
++        # Optional authenticated local/remote upstream, supplied by the launcher.
++        # The credential is never written into generated product config files.
++        api_key = os.environ.get("MEDHARNESS_UPSTREAM_API_KEY")
++        if api_key:
++            headers = {k: v for k, v in headers.items() if k.lower() not in {"authorization", "x-api-key"}}
++            headers["Authorization"] = "Bearer " + api_key
++            headers["x-api-key"] = api_key
+         if self.command in {"POST", "PUT", "PATCH"}:
+             headers["Content-Length"] = str(len(body))
+         req = Request(target, data=body if self.command in {"POST", "PUT", "PATCH"} else None, headers=headers, method=self.command)
+@@ -374,7 +381,7 @@
+             "path": remainder,
+             "method": self.command,
+             "status": status,
+-            "request_headers": dict(self.headers.items()),
++            "request_headers": {k: ("[redacted]" if k.lower() in {"authorization", "x-api-key"} else v) for k, v in self.headers.items()},
+             "request_body": body.decode("utf-8", errors="replace"),
+             "response_headers": dict(response_headers),
+             "response_text": decoded_text,

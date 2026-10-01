@@ -1,0 +1,46 @@
+# Generated from external/HealthAgentBench/tasks/clinical_trial_matching_task_27/environment/docker-compose.yaml
+# (upstream file). main: x-default, network_mode none, fixed image tag; bootstrap keeps egress for
+# cold-cache fetches. Paths interpolate SAMPLE_METADATA_TASK_DIR / SAMPLE_METADATA_HAB_ROOT,
+# which Inspect exports from sample.metadata (docker.py:625 resolve_config_environment).
+services:
+  main:
+    build:
+      context: ${SAMPLE_METADATA_TASK_DIR}
+      dockerfile: environment/Dockerfile
+    image: medicalharness/healthagentbench-clinical_trial_matching_task_27:6caf439
+    volumes:
+    - workspace-data:/workspace/data
+    depends_on:
+      bootstrap:
+        condition: service_completed_successfully
+    environment:
+    - PYTHONUNBUFFERED=1
+    x-local: true
+    x-default: true
+    network_mode: none
+    init: true
+    command:
+    - sh
+    - -c
+    - sleep infinity
+    stop_grace_period: 1s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2048M
+  bootstrap:
+    image: medicalharness/healthagentbench-clinical_trial_matching_task_27:6caf439
+    volumes:
+    - ${SAMPLE_METADATA_TASK_DIR}/environment/bootstrap.sh:/bootstrap.sh:ro
+    - ${SAMPLE_METADATA_HAB_ROOT}/assets/clinical_trial_matching/assets/raw_cache:/data/_cache:rw
+    - ${SAMPLE_METADATA_TASK_DIR}/tests:/tests:rw
+    - ${SAMPLE_METADATA_TASK_DIR}/environment/fetch_trials.py:/opt/ctm/fetch_trials.py:ro
+    - ${SAMPLE_METADATA_TASK_DIR}/environment/extract_task_inputs.py:/opt/ctm/extract_task_inputs.py:ro
+    - workspace-data:/workspace/data
+    command:
+    - /bin/bash
+    - /bootstrap.sh
+    x-local: true
+volumes:
+  workspace-data: null

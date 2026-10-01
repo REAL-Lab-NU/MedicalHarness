@@ -1,0 +1,60 @@
+# Generated from external/HealthAgentBench/tasks/xray_report_correction_case_03/environment/docker-compose.yaml
+# (upstream file). main: x-default, network_mode none, fixed image tag; bootstrap keeps egress for
+# cold-cache fetches. Paths interpolate SAMPLE_METADATA_TASK_DIR / SAMPLE_METADATA_HAB_ROOT,
+# which Inspect exports from sample.metadata (docker.py:625 resolve_config_environment).
+services:
+  bootstrap:
+    image: medicalharness/healthagentbench-xray_report_correction_case_03:6caf439
+    build:
+      context: ${SAMPLE_METADATA_TASK_DIR}
+      dockerfile: environment/Dockerfile
+    env_file:
+    - path: ${SAMPLE_METADATA_HAB_ROOT}/.env
+      required: false
+    volumes:
+    - ${SAMPLE_METADATA_TASK_DIR}/environment/task_manifest.json:/opt/task_manifest.json:ro
+    - ${SAMPLE_METADATA_TASK_DIR}/environment/bootstrap.sh:/bootstrap.sh:ro
+    - ${SAMPLE_METADATA_HAB_ROOT}/assets/xray_report_correction/assets/mimic-cxr-jpg/2.1.0:/data/_src/jpg_root:rw
+    - ${SAMPLE_METADATA_HAB_ROOT}/assets/xray_report_correction/assets/mimic-cxr/2.1.0/extracted:/data/_src/patient_reports_root:rw
+    - ${SAMPLE_METADATA_TASK_DIR}/tests:/tests:rw
+    - patient-data:/data/patient:rw
+    environment:
+    - PYTHONUNBUFFERED=1
+    command:
+    - /bin/bash
+    - /bootstrap.sh
+    x-local: true
+  main:
+    image: medicalharness/healthagentbench-xray_report_correction_case_03:6caf439
+    build:
+      context: ${SAMPLE_METADATA_TASK_DIR}
+      dockerfile: environment/Dockerfile
+    depends_on:
+      bootstrap:
+        condition: service_completed_successfully
+    env_file:
+    - path: ${SAMPLE_METADATA_HAB_ROOT}/.env
+      required: false
+    volumes:
+    - patient-data:/data/patient:ro
+    environment:
+    - PYTHONUNBUFFERED=1
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4096M
+        reservations:
+          cpus: '1'
+          memory: 2G
+    x-local: true
+    x-default: true
+    network_mode: none
+    init: true
+    command:
+    - sh
+    - -c
+    - sleep infinity
+    stop_grace_period: 1s
+volumes:
+  patient-data: null

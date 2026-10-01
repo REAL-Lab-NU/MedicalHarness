@@ -1,0 +1,35 @@
+diff --git a/src/harnessbench/runner.py b/src/harnessbench/runner.py
+--- a/src/harnessbench/runner.py
++++ b/src/harnessbench/runner.py
+@@ -90,8 +90,13 @@
+ def _cli_model_from_adapter_command(command: Any) -> str | None:
+     if not isinstance(command, list):
+         return None
++    model_flags = {"--model"}
++    # ZeroClaw and NullClaw use -m for the task message. Only interpret that
++    # short flag as a model for CLIs whose interface defines it that way.
++    if command and Path(str(command[0])).name in {"codex", "claude", "claude-code"}:
++        model_flags.add("-m")
+     for i, arg in enumerate(command):
+-        if str(arg) in ("-m", "--model") and i + 1 < len(command):
++        if str(arg) in model_flags and i + 1 < len(command):
+             m = str(command[i + 1]).strip()
+             return m or None
+     return None
+@@ -562,10 +567,15 @@
+                 # missing measurement. Letting the exception escape drops the task from the results
+                 # entirely, which silently censors exactly the slowest harnesses -- so grade whatever
+                 # the agent left in the workspace and record the timeout in the metadata instead.
++                def partial_text(value: Any) -> str:
++                    return value.decode("utf-8", errors="replace") if isinstance(value, bytes) else (value or "")
++
+                 adapter_result = AdapterRunResult(
+                     ok=False,
+                     command=list(getattr(exc, "cmd", []) or []),
+-                    stderr=f"episode exceeded timeout_sec={ctx.timeout_sec}",
++                    stdout=partial_text(exc.stdout),
++                    stderr=(partial_text(exc.stderr).rstrip() + "\n" +
++                            f"episode exceeded timeout_sec={ctx.timeout_sec}").lstrip("\n"),
+                     metadata={"timed_out": True, "timeout_sec": ctx.timeout_sec},
+                 )
+                 print(f"[harnessbench] {task.task_id} timed out after {ctx.timeout_sec}s; "

@@ -1,0 +1,48 @@
+# Generated from external/HealthAgentBench/tasks/ct_abnormality_valid_81_a_1/environment/docker-compose.yaml
+# (upstream file). main: x-default, network_mode none, fixed image tag; bootstrap keeps egress for
+# cold-cache fetches. Paths interpolate SAMPLE_METADATA_TASK_DIR / SAMPLE_METADATA_HAB_ROOT,
+# which Inspect exports from sample.metadata (docker.py:625 resolve_config_environment).
+services:
+  main:
+    build:
+      context: ${SAMPLE_METADATA_TASK_DIR}
+      dockerfile: environment/Dockerfile
+    image: medicalharness/healthagentbench-ct_abnormality_valid_81_a_1:6caf439
+    volumes:
+    - workspace-data:/workspace/data
+    depends_on:
+      bootstrap:
+        condition: service_completed_successfully
+    environment:
+    - PYTHONUNBUFFERED=1
+    x-local: true
+    x-default: true
+    network_mode: none
+    init: true
+    command:
+    - sh
+    - -c
+    - sleep infinity
+    stop_grace_period: 1s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 8192M
+  bootstrap:
+    image: medicalharness/healthagentbench-ct_abnormality_valid_81_a_1:6caf439
+    env_file:
+    - path: ${SAMPLE_METADATA_HAB_ROOT}/.env
+      required: false
+    volumes:
+    - ${SAMPLE_METADATA_TASK_DIR}/environment/bootstrap.sh:/bootstrap.sh:ro
+    - ${SAMPLE_METADATA_TASK_DIR}/environment/gold_derivation.py:/opt/gold_derivation.py:ro
+    - ${SAMPLE_METADATA_HAB_ROOT}/assets/ct_abnormality/assets/raw_cache:/data/_cache:rw
+    - ${SAMPLE_METADATA_TASK_DIR}/tests:/tests:rw
+    - workspace-data:/workspace/data
+    command:
+    - /bin/bash
+    - /bootstrap.sh
+    x-local: true
+volumes:
+  workspace-data: null

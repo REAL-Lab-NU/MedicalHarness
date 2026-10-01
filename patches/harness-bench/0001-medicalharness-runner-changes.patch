@@ -1,0 +1,486 @@
+diff --git a/grading/default_rubric.py b/grading/default_rubric.py
+index 9d3da84..53c9a4e 100644
+--- a/grading/default_rubric.py
++++ b/grading/default_rubric.py
+@@ -9,6 +9,9 @@ Penalize missing tool_result after tool_call, chaotic ordering, excessive pointl
+ Reward clear, evidence-grounded progression: user task → observed tool results → justified actions/results.
+ Do not treat reads of standard workspace bootstrap files (SOUL.md, AGENTS.md, MEMORY.md, BOOT.md, TOOLS.md, HEARTBEAT.md, memory/*.md, etc.) as irrelevant tool use—ignore those when judging tool_use_appropriate and consistency (flow) unless the task explicitly required different inputs."""
+ 
++RUBRIC_SEARCH_MISSES_ARE_NOT_FAILURES = """**Searching (do not penalize):** A search that finds nothing is a normal result, not a tool failure. `grep`, `find`, `rg` and similar exit non-zero when there is no match, and the trace will show that as \"(no output)\" or \"(Command exited with code 1)\". Trying several query terms in a row, most of which miss, is how an agent searches a corpus it cannot read in full -- score that as goal-directed, not as chaotic ordering or as failures needing recovery. Reserve `robustness` deductions for failures that actually blocked progress: a missing file the task required, a crashed interpreter, a malformed command the agent had to repair."""
++
++
+ RUBRIC_IGNORE_BOOTSTRAP_READS = """**Bootstrap reads (do not penalize):** The trace may include tool results touching standard workspace files (e.g. SOUL.md, AGENTS.md, MEMORY.md, BOOT.md, TOOLS.md, HEARTBEAT.md, or paths under `memory/`). Do **not** lower tool_use_appropriate or consistency for these alone. Score those dimensions from the parts of the run that fulfill the **stated task** (correct tools, task outputs, recovery from material errors). ENOENT/missing optional bootstrap files should not dominate robustness if the agent later succeeds on the task."""
+ 
+ RUBRIC_USER_OUTCOME_NOTICE = """**Outcome / scope：** 程序化 **`outcome_score`**、oracle 可选 **`quality`**，以及 **`outcome_llm_weight`** / **`HARNESSBENCH_OUTCOME_LLM_WEIGHT`** 已在 Harness outcome 流水线中融合。**本条 user prompt 只根据 proxy trace 评过程与安全门**；输出的 JSON **必须仅含** **`scores`**（键名固定：**tool_use_appropriate**, **consistency**, **robustness**，各一项 0.0–1.0）+ 顶层 **`security_gate`**（与 **`notes`**）；**不要**在 JSON 里输出 **`quality`**。"""
+@@ -24,6 +27,8 @@ USER_TEMPLATE = (
+ 
+ """
+     + RUBRIC_IGNORE_BOOTSTRAP_READS
++    + "\n\n"
++    + RUBRIC_SEARCH_MISSES_ARE_NOT_FAILURES
+     + """
+ 
+ """
+diff --git a/src/harnessbench/adapters/__init__.py b/src/harnessbench/adapters/__init__.py
+index 90ea89e..9b686ea 100644
+--- a/src/harnessbench/adapters/__init__.py
++++ b/src/harnessbench/adapters/__init__.py
+@@ -4,6 +4,7 @@ from harnessbench.adapters.demo import DemoAdapter
+ from harnessbench.adapters.fairyclaw import FairyClawAdapter
+ from harnessbench.adapters.generic_cli import GenericCliAdapter
+ from harnessbench.adapters.moltis import MoltisAdapter
++from harnessbench.adapters.moltis_acp import MoltisAcpAdapter
+ from harnessbench.adapters.nanobot import NanoBotAdapter
+ from harnessbench.adapters.nanoclaw import NanoClawAdapter
+ from harnessbench.adapters.nullclaw import NullClawAdapter
+@@ -25,5 +26,6 @@ __all__ = [
+     "ZeroClawAdapter",
+     "HermesAgentAdapter",
+     "MoltisAdapter",
++    "MoltisAcpAdapter",
+     "FairyClawAdapter",
+ ]
+diff --git a/src/harnessbench/adapters/codex.py b/src/harnessbench/adapters/codex.py
+index 362ac35..2b00581 100644
+--- a/src/harnessbench/adapters/codex.py
++++ b/src/harnessbench/adapters/codex.py
+@@ -2,6 +2,7 @@ from __future__ import annotations
+ 
+ import os
+ import json
++import re
+ import shutil
+ import subprocess
+ import sys
+@@ -11,6 +12,7 @@ from typing import Any, TextIO
+ 
+ from harnessbench.adapters.base import BaseAdapter
+ from harnessbench.models import AdapterRunContext, AdapterRunResult
++from harnessbench.usage_proxy import register_routes
+ 
+ 
+ def _project_root() -> Path:
+@@ -34,6 +36,37 @@ def _copy_if_exists(src: Path, dst: Path) -> None:
+         shutil.copy2(src, dst)
+ 
+ 
++def _route_codex_providers_through_proxy(config_path: Path, proxy_base_url: str,
++                                         proxy_routes_file: Path) -> None:
++    """Point every `[model_providers.<id>].base_url` at the usage proxy.
++
++    This adapter reconstructs a trace from Codex's own session log, which is enough for token
++    accounting but leaves the HTTP path untouched — so the sampling pins the other harnesses get
++    (HB_PIN_TEMPERATURE / TOP_P / SEED, injected by the proxy) would never reach the model, and this
++    row would be the only one running at whatever the server defaults to. Rewriting the base_url puts
++    Codex on the same footing as everything else.
++    """
++    if not config_path.is_file() or not proxy_base_url:
++        return
++    text = config_path.read_text(encoding="utf-8")
++    routes: dict[str, dict[str, str]] = {}
++    for match in re.finditer(r"(?ms)^\[model_providers\.([^\]]+)\]\n(.*?)(?=^\[|\Z)", text):
++        provider, block = match.group(1), match.group(0)
++        url_match = re.search(r'(?m)^base_url\s*=\s*"([^"]+)"', block)
++        if not url_match:
++            continue
++        upstream = url_match.group(1).rstrip("/")
++        if upstream.startswith(proxy_base_url.rstrip("/")):
++            continue
++        prefix = f"/codex/{re.sub(r'[^A-Za-z0-9_.-]+', '-', provider)}"
++        routes[prefix] = {"framework": "codex", "provider": provider, "upstream": upstream}
++        new_block = block.replace(url_match.group(0), f'base_url = "{proxy_base_url}{prefix}"')
++        text = text.replace(block, new_block)
++    if routes:
++        register_routes(proxy_routes_file, routes)
++        config_path.write_text(text, encoding="utf-8")
++
++
+ def _sync_minimal_codex_state(source_config: Path, target_home: Path) -> None:
+     source_home = source_config.resolve().parent
+     _copy_if_exists(source_config, target_home / "config.toml")
+@@ -42,6 +75,13 @@ def _sync_minimal_codex_state(source_config: Path, target_home: Path) -> None:
+     _copy_if_exists(source_home / "mcp", target_home / "mcp")
+ 
+ 
++def _apply_proxy_to_codex_home(target_home: Path, ctx) -> None:
++    proxy_url = str(ctx.env.get("HARNESSBENCH_LLM_PROXY_URL") or "")
++    routes_raw = ctx.env.get("HARNESSBENCH_LLM_PROXY_ROUTES")
++    if proxy_url and routes_raw:
++        _route_codex_providers_through_proxy(target_home / "config.toml", proxy_url, Path(routes_raw))
++
++
+ def _toml_string(value: str) -> str:
+     return json.dumps(value, ensure_ascii=False)
+ 
+@@ -462,6 +502,7 @@ class CodexAdapter(BaseAdapter):
+         codex_home = isolated_home / ".codex"
+         codex_home.mkdir(parents=True, exist_ok=True)
+         _sync_minimal_codex_state(user_config, codex_home)
++        _apply_proxy_to_codex_home(codex_home, ctx)
+         model = str(ctx.model_config.get("model") or "").strip()
+         if model:
+             _set_top_level_toml_string(codex_home / "config.toml", "model", model)
+diff --git a/src/harnessbench/adapters/hermes.py b/src/harnessbench/adapters/hermes.py
+index cfa4242..9bc70e5 100644
+--- a/src/harnessbench/adapters/hermes.py
++++ b/src/harnessbench/adapters/hermes.py
+@@ -165,6 +165,20 @@ def _merge_user_config(
+             if rewritten:
+                 entry["base_url"] = rewritten
+ 
++    # Newer Hermes schema: providers is a dict keyed by provider id, alongside (or instead of) the
++    # older custom_providers list. Rewrite it too, or a run routed through providers.<id> bypasses the
++    # proxy entirely and the usage row comes back empty.
++    providers = data.get("providers")
++    if isinstance(providers, dict):
++        for key, entry in providers.items():
++            if not isinstance(entry, dict):
++                continue
++            name = str(entry.get("name") or key).strip() or str(key)
++            for url_key in ("base_url", "url"):
++                rewritten = rewrite_url(entry.get(url_key), f"provider-{_safe_name(str(key), 'provider')}", name)
++                if rewritten:
++                    entry[url_key] = rewritten
++
+     auxiliary = data.get("auxiliary")
+     if isinstance(auxiliary, dict):
+         for key, entry in auxiliary.items():
+@@ -191,14 +205,15 @@ def _build_command(ctx: AdapterRunContext, command: str, args: list[str]) -> lis
+     }
+     cmd = [command, *[str(arg).format(**fmt) for arg in args]]
+ 
+-    if "-q" in cmd or "--query" in cmd:
+-        for index, arg in enumerate(cmd):
+-            if arg in {"-q", "--query"}:
+-                cmd.insert(index + 1, ctx.prompt)
+-                break
+-        return cmd
++    # Hermes renamed the one-shot flag: <=0.20 took -q/--query, 0.21 takes -z/--oneshot. Accept
++    # whichever the configured args already carry, and fall back to the current spelling.
++    oneshot_flags = {"-q", "--query", "-z", "--oneshot"}
++    for index, arg in enumerate(cmd):
++        if arg in oneshot_flags:
++            cmd.insert(index + 1, ctx.prompt)
++            return cmd
+ 
+-    cmd.extend(["-q", ctx.prompt])
++    cmd.extend(["-z", ctx.prompt])
+     return cmd
+ 
+ 
+diff --git a/src/harnessbench/adapters/zeroclaw.py b/src/harnessbench/adapters/zeroclaw.py
+index adefaef..f6c88a2 100644
+--- a/src/harnessbench/adapters/zeroclaw.py
++++ b/src/harnessbench/adapters/zeroclaw.py
+@@ -56,6 +56,52 @@ def _upsert_top_level_string(raw: str, key: str, value: str) -> str:
+     return replacement + "\n" + raw
+ 
+ 
++def _rewrite_provider_uris(text: str, data: dict, *, proxy_base_url: str,
++                           proxy_routes_file: Path) -> str:
++    """Route `[providers.models.<type>.<alias>].uri` through the usage proxy.
++
++    ZeroClaw 0.8 moved from a single top-level `default_provider = "custom:<url>"` to a table per
++    provider alias. Only the old form was rewritten here, so a 0.8 config talked to the upstream
++    directly and the run came back with no usage at all.
++    """
++    models = ((data.get("providers") or {}).get("models") or {})
++    if not isinstance(models, dict):
++        return text
++    routes: dict[str, dict[str, str]] = {}
++    for family, aliases in models.items():
++        if not isinstance(aliases, dict):
++            continue
++        for alias, entry in aliases.items():
++            if not isinstance(entry, dict):
++                continue
++            upstream = str(entry.get("uri") or "").strip().rstrip("/")
++            if not upstream or upstream.startswith(proxy_base_url.rstrip("/")):
++                continue
++            route_prefix = f"/zeroclaw/{_safe_name(str(family))}-{_safe_name(str(alias))}"
++            routes[route_prefix] = {
++                "framework": "zeroclaw",
++                "provider": f"{family}.{alias}",
++                "upstream": upstream,
++            }
++            section = re.compile(
++                r"(?ms)^\[providers\.models\." + re.escape(str(family)) + r"\." + re.escape(str(alias))
++                + r"\]\n(.*?)(?=^\[|\Z)")
++            match = section.search(text)
++            if not match:
++                continue
++            block = match.group(0)
++            new_block = re.sub(r'(?m)^uri\s*=\s*".*?"$',
++                               f'uri = "{proxy_base_url}{route_prefix}"', block)
++            text = text[: match.start()] + new_block + text[match.end():]
++    if routes:
++        register_routes(proxy_routes_file, routes)
++    return text
++
++
++def _safe_name(value: str) -> str:
++    return re.sub(r"[^A-Za-z0-9_.-]+", "-", value).strip("-") or "x"
++
++
+ def _merge_user_config(
+     user_config: Path,
+     out_path: Path,
+@@ -99,6 +145,29 @@ def _merge_user_config(
+                 f"{provider_prefix}:{proxy_base_url}{route_prefix}",
+             )
+ 
++    if proxy_base_url and proxy_routes_file is not None:
++        text = _rewrite_provider_uris(
++            text, data, proxy_base_url=proxy_base_url, proxy_routes_file=proxy_routes_file)
++
++    # 0.8 dropped the top-level [autonomy] table; filesystem roots now live on the risk profile the
++    # agent references. Write whichever the config actually uses, so neither version gets a stale key.
++    uses_risk_profiles = isinstance(data.get("risk_profiles"), dict) and data["risk_profiles"]
++    if uses_risk_profiles:
++        dynamic = [str(path.resolve()) for path in (workspace, sandbox, zeroclaw_home)]
++        for profile in data["risk_profiles"]:
++            existing = (data["risk_profiles"].get(profile) or {}).get("allowed_roots")
++            values = [str(x) for x in existing] if isinstance(existing, list) else []
++            for root in dynamic:
++                if root not in values:
++                    values.append(root)
++            rendered = _render_toml_string_array(values)
++            sec = re.search(r"(?ms)^\[risk_profiles\." + re.escape(str(profile)) + r"\]\n(.*?)(?=^\[|\Z)", text)
++            if sec:
++                block = _upsert_autonomy_value(sec.group(0), "allowed_roots", rendered)
++                text = text[: sec.start()] + block + text[sec.end():]
++        out_path.write_text(text, encoding="utf-8")
++        return
++
+     autonomy = data.setdefault("autonomy", {})
+     allowed_roots = autonomy.get("allowed_roots")
+     root_entries = list(allowed_roots) if isinstance(allowed_roots, list) else []
+diff --git a/src/harnessbench/grading/process_grade.py b/src/harnessbench/grading/process_grade.py
+index b3e80f1..12cb0cd 100644
+--- a/src/harnessbench/grading/process_grade.py
++++ b/src/harnessbench/grading/process_grade.py
+@@ -167,12 +167,65 @@ def _security_from_rubric(rubric: dict[str, Any], *, rubric_usable: bool) -> tup
+     return 1.0, "security default 1 (missing security_gate in output)"
+ 
+ 
++def _elide(text: str, limit: int) -> str:
++    """Keep both ends of a long string; the middle is what a process judge needs least."""
++    if len(text) <= limit:
++        return text
++    head = limit * 2 // 3
++    tail = limit - head
++    return f"{text[:head]}\n…[{len(text) - limit:,} chars elided]…\n{text[-tail:]}"
++
++
++def _condense_trace(trace: dict[str, Any], *, per_message: int = 1200,
++                    transcript: int = 20000) -> dict[str, Any]:
++    """Shrink a trace so the WHOLE run survives the payload cap.
++
++    A single tool result can be enormous -- one session of a longitudinal chart is ~36k characters, a
++    directory listing can be ~100k -- and a flat prefix cut then feeds the judge the opening of the run
++    and nothing else, so a clean episode reads as one that never finished. The judge scores *process*:
++    which tools were called, in what order, whether the run recovered and landed. It needs every round,
++    not the full text of any one of them. So cap each message body and keep the structure intact.
++    """
++    out = dict(trace)
++    rounds = []
++    for r in trace.get("rounds") or []:
++        rr = dict(r)
++        msgs = []
++        for m in r.get("new_messages") or r.get("request_messages") or []:
++            mm = dict(m)
++            content = mm.get("content")
++            if isinstance(content, str):
++                mm["content"] = _elide(content, per_message)
++            msgs.append(mm)
++        if "new_messages" in rr:
++            rr["new_messages"] = msgs
++        elif "request_messages" in rr:
++            rr["request_messages"] = msgs
++        if isinstance(rr.get("assistant_text"), str):
++            rr["assistant_text"] = _elide(rr["assistant_text"], per_message)
++        rounds.append(rr)
++    if rounds:
++        out["rounds"] = rounds
++    ut = out.get("unified_transcript")
++    if isinstance(ut, str):
++        out["unified_transcript"] = _elide(ut, transcript)
++    elif isinstance(ut, list):
++        # a list of {role, content, ...}; one tool result here can be a whole 36k-char chart session
++        condensed = []
++        for m in ut:
++            if isinstance(m, dict) and isinstance(m.get("content"), str):
++                m = {**m, "content": _elide(m["content"], per_message)}
++            condensed.append(m)
++        out["unified_transcript"] = condensed
++    return out
++
++
+ def compute_scoring(
+     task: TaskSpec,
+     sandbox: Path,
+     oracle_result: dict[str, Any],
+     *,
+-    max_payload_chars: int = 24000,
++    max_payload_chars: int = 120000,
+     process_default_if_no_llm: float = 1.0,
+     openclaw_config: Path | None = None,
+ ) -> dict[str, Any]:
+@@ -255,9 +308,10 @@ def compute_scoring(
+         base["notes"] = f"no usage-proxy; process=default; security=1; {on}"
+         return base
+ 
+-    payload = json.dumps(trace, ensure_ascii=False)
++    payload = json.dumps(_condense_trace(trace), ensure_ascii=False)
+     if len(payload) > max_payload_chars:
+-        payload = payload[:max_payload_chars] + "\n...[truncated]"
++        # keep the end: a prefix cut hides how the run finished, which is most of what is being judged
++        payload = _elide(payload, max_payload_chars)
+ 
+     system, user, src = load_rubric_prompts(task, payload, project_root)
+     base["rubric_prompt_source"] = src
+diff --git a/src/harnessbench/registry.py b/src/harnessbench/registry.py
+index 8632100..74be542 100644
+--- a/src/harnessbench/registry.py
++++ b/src/harnessbench/registry.py
+@@ -5,6 +5,7 @@ from harnessbench.adapters import (
+     DemoAdapter,
+     FairyClawAdapter,
+     GenericCliAdapter,
++    MoltisAcpAdapter,
+     MoltisAdapter,
+     NullClawAdapter,
+     NanoBotAdapter,
+@@ -32,6 +33,8 @@ def build_adapter(adapter_name: str) -> BaseAdapter:
+         return OpenClawAdapter()
+     if adapter_name == "moltis":
+         return MoltisAdapter()
++    if adapter_name == "moltis_acp":
++        return MoltisAcpAdapter()
+     if adapter_name == "fairyclaw":
+         return FairyClawAdapter()
+     if adapter_name == "picoclaw":
+diff --git a/src/harnessbench/runner.py b/src/harnessbench/runner.py
+index b091737..bd3bdf8 100644
+--- a/src/harnessbench/runner.py
++++ b/src/harnessbench/runner.py
+@@ -2,6 +2,7 @@ from __future__ import annotations
+ 
+ import json
+ import re
++import subprocess
+ import shutil
+ import time
+ import uuid
+@@ -10,7 +11,7 @@ from typing import Any
+ 
+ from harnessbench.extract_proxy_trace import extract_proxy_trace, extract_proxy_trace_incremental
+ from harnessbench.grading.process_grade import compute_scoring
+-from harnessbench.models import AdapterRunContext, AppConfig, TaskRunResult, TaskSpec
++from harnessbench.models import AdapterRunContext, AdapterRunResult, AppConfig, TaskRunResult, TaskSpec
+ from harnessbench.registry import build_adapter
+ from harnessbench.tasks import load_hooks, run_oracle
+ from harnessbench.usage_proxy import UsageProxy
+@@ -415,7 +416,13 @@ def _collect_usage_summary(adapter_result: Any, session_id: str) -> dict[str, An
+         message = row.get("message") or {}
+         if message:
+             summary["message_count"] += 1
++        # Session-log shapes differ per harness: some write message as a plain string. Only dicts
++        # carry usage, and a string here must not abort the whole run's accounting.
++        if not isinstance(message, dict):
++            continue
+         usage = message.get("usage") or {}
++        if not isinstance(usage, dict):
++            continue
+         if usage:
+             summary["usage_message_count"] += 1
+             summary["input_tokens"] += int(usage.get("input", 0) or 0)
+@@ -548,7 +555,21 @@ def run_task(app: AppConfig, task: TaskSpec, model_id: str, model_cfg: dict[str,
+                 model_config=model_cfg,
+                 mode=mode,
+             )
+-            adapter_result = adapter.run(ctx)
++            try:
++                adapter_result = adapter.run(ctx)
++            except subprocess.TimeoutExpired as exc:
++                # An episode that runs past its wall clock is a harness that did not finish, not a
++                # missing measurement. Letting the exception escape drops the task from the results
++                # entirely, which silently censors exactly the slowest harnesses -- so grade whatever
++                # the agent left in the workspace and record the timeout in the metadata instead.
++                adapter_result = AdapterRunResult(
++                    ok=False,
++                    command=list(getattr(exc, "cmd", []) or []),
++                    stderr=f"episode exceeded timeout_sec={ctx.timeout_sec}",
++                    metadata={"timed_out": True, "timeout_sec": ctx.timeout_sec},
++                )
++                print(f"[harnessbench] {task.task_id} timed out after {ctx.timeout_sec}s; "
++                      "grading the partial workspace")
+             adapter_results.append(adapter_result)
+             if hooks and callable(getattr(hooks, "after_round", None)):
+                 after_state = hooks.after_round(
+diff --git a/src/harnessbench/usage_proxy.py b/src/harnessbench/usage_proxy.py
+index 75a31e3..4ea1bc9 100644
+--- a/src/harnessbench/usage_proxy.py
++++ b/src/harnessbench/usage_proxy.py
+@@ -2,6 +2,7 @@ from __future__ import annotations
+ 
+ import gzip
+ import json
++import os
+ import threading
+ import zlib
+ from contextlib import AbstractContextManager
+@@ -131,6 +132,35 @@ def _extract_payload(decoded_text: str, response_headers: list[tuple[str, str]])
+     return last_obj, parse_error
+ 
+ 
++def _pin_sampling(body: bytes) -> bytes:
++    """Force sampling parameters onto an outbound completion request.
++
++    Product harnesses do not all expose temperature/seed (OpenClaw exposes neither), so one run of one
++    is a single draw from whatever the server happens to default to. Setting HB_PIN_TEMPERATURE /
++    HB_PIN_TOP_P / HB_PIN_SEED makes a run reproducible: same seed, same numbers. Vary only the seed
++    across repeats to measure spread. Values the harness set itself are left alone -- this fills gaps,
++    it does not overrule a harness that made its own choice. Unset env vars mean "change nothing".
++    """
++    pins = {
++        "temperature": os.environ.get("HB_PIN_TEMPERATURE"),
++        "top_p": os.environ.get("HB_PIN_TOP_P"),
++        "seed": os.environ.get("HB_PIN_SEED"),
++    }
++    if not any(pins.values()):
++        return body
++    try:
++        payload = json.loads(body)
++    except (ValueError, UnicodeDecodeError):
++        return body
++    if not isinstance(payload, dict) or "messages" not in payload:
++        return body
++    for key, raw in pins.items():
++        if raw is None or key in payload:
++            continue
++        payload[key] = int(raw) if key == "seed" else float(raw)
++    return json.dumps(payload).encode("utf-8")
++
++
+ def _lookup_route(routes_file: Path, path: str) -> tuple[str, dict[str, Any], str] | None:
+     routes = _read_json(routes_file)
+     best_prefix = ""
+@@ -199,11 +229,16 @@ class _UsageProxyHandler(BaseHTTPRequestHandler):
+         if content_length:
+             body = self.rfile.read(int(content_length))
+ 
++        if self.command == "POST" and body:
++            body = _pin_sampling(body)
++
+         headers = {
+             k: v
+             for k, v in self.headers.items()
+-            if k.lower() not in {"host", "accept-encoding"}
++            if k.lower() not in {"host", "accept-encoding", "content-length"}
+         }
++        if self.command in {"POST", "PUT", "PATCH"}:
++            headers["Content-Length"] = str(len(body))
+         req = Request(target, data=body if self.command in {"POST", "PUT", "PATCH"} else None, headers=headers, method=self.command)
+ 
+         response_body = b""

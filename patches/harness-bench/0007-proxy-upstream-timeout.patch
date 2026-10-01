@@ -1,0 +1,83 @@
+Subject: [PATCH 0007] Configure the usage proxy upstream socket timeout per run
+
+HB_PROXY_UPSTREAM_TIMEOUT_SECONDS accepts a finite positive number of seconds.
+Unset keeps the existing 1200-second default. Validate before binding a listener
+and snapshot the timeout per proxy instance. This is the urllib connection/read
+operation timeout, not a total request or episode deadline.
+
+Install after patches 0001 through 0006 from this directory:
+  git -C /path/to/harness-bench apply --check /path/to/0007-proxy-upstream-timeout.patch
+  git -C /path/to/harness-bench apply /path/to/0007-proxy-upstream-timeout.patch
+For a fresh pinned clone, follow the existing 0001-0006 sequence first.
+
+Verify from MedicalHarness (point PYTHONPATH at that patched checkout):
+  PYTHONPATH=/path/to/harness-bench/src .venv/bin/python -m pytest -q patches/harness-bench/test_proxy_upstream_timeout.py patches/harness-bench/test_output_token_cap.py
+Set HB_PROXY_UPSTREAM_TIMEOUT_SECONDS=1800 only in the new run environment.
+Existing Python processes retain loaded code; existing proxy instances retain
+initial configuration. No server restart is needed for new harness processes.
+
+--- a/src/harnessbench/usage_proxy.py
++++ b/src/harnessbench/usage_proxy.py
+@@ -2,6 +2,7 @@
+ 
+ import gzip
+ import json
++import math
+ import os
+ import threading
+ import zlib
+@@ -161,6 +162,21 @@
+     return json.dumps(payload).encode("utf-8")
+ 
+ 
++def _upstream_timeout_seconds() -> float:
++    """Read the opt-in connection/socket-read timeout, not an episode deadline."""
++    raw = os.environ.get("HB_PROXY_UPSTREAM_TIMEOUT_SECONDS")
++    if raw is None:
++        return 1200.0
++    message = "HB_PROXY_UPSTREAM_TIMEOUT_SECONDS must be a finite positive number"
++    try:
++        timeout = float(raw)
++    except ValueError as exc:
++        raise ValueError(message) from exc
++    if not math.isfinite(timeout) or timeout <= 0:
++        raise ValueError(message)
++    return timeout
++
++
+ def _output_token_limit() -> int | None:
+     raw = os.environ.get("HB_MAX_OUTPUT_TOKENS")
+     if raw is None:
+@@ -243,6 +259,7 @@
+     task_id: str
+     session_id: str
+     model_id: str
++    upstream_timeout_seconds: float = 1200.0
+ 
+ 
+ class _UsageProxyHandler(BaseHTTPRequestHandler):
+@@ -305,7 +322,7 @@
+         status = 500
+         response_headers: list[tuple[str, str]] = []
+         try:
+-            with urlopen(req, timeout=1200) as resp:
++            with urlopen(req, timeout=self.server.config.upstream_timeout_seconds) as resp:
+                 status = resp.status
+                 response_body = resp.read()
+                 response_headers = list(resp.headers.items())
+@@ -407,6 +424,7 @@
+ class UsageProxy(AbstractContextManager["UsageProxy"]):
+     def __init__(self, routes_file: Path, log_file: Path, raw_dir: Path, task_id: str, session_id: str, model_id: str):
+         _output_token_limit()  # Fail before opening a listener on invalid configuration.
++        upstream_timeout_seconds = _upstream_timeout_seconds()
+         self.routes_file = routes_file
+         self.log_file = log_file
+         self.server = _UsageProxyServer(
+@@ -418,6 +436,7 @@
+                 task_id=task_id,
+                 session_id=session_id,
+                 model_id=model_id,
++                upstream_timeout_seconds=upstream_timeout_seconds,
+             ),
+         )
+         self._thread = threading.Thread(target=self.server.serve_forever, daemon=True)

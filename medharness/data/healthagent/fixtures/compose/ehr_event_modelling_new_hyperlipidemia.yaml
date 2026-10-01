@@ -1,0 +1,48 @@
+# Generated from external/HealthAgentBench/tasks/ehr_event_modelling_new_hyperlipidemia/environment/docker-compose.yaml
+# (upstream file). main: x-default, network_mode none, fixed image tag; bootstrap keeps egress for
+# cold-cache fetches. Paths interpolate SAMPLE_METADATA_TASK_DIR / SAMPLE_METADATA_HAB_ROOT,
+# which Inspect exports from sample.metadata (docker.py:625 resolve_config_environment).
+services:
+  main:
+    build:
+      context: ${SAMPLE_METADATA_TASK_DIR}
+      dockerfile: environment/Dockerfile
+    image: medicalharness/healthagentbench-ehr_event_modelling_new_hyperlipidemia:6caf439
+    volumes:
+    - workspace-data:/workspace/data:rw
+    depends_on:
+      bootstrap:
+        condition: service_completed_successfully
+    environment:
+    - PYTHONUNBUFFERED=1
+    x-local: true
+    x-default: true
+    network_mode: none
+    init: true
+    command:
+    - sh
+    - -c
+    - sleep infinity
+    stop_grace_period: 1s
+    deploy:
+      resources:
+        limits:
+          cpus: '16'
+          memory: 65536M
+  bootstrap:
+    image: medicalharness/healthagentbench-ehr_event_modelling_new_hyperlipidemia:6caf439
+    env_file:
+    - path: ${SAMPLE_METADATA_HAB_ROOT}/.env
+      required: false
+    volumes:
+    - ${SAMPLE_METADATA_HAB_ROOT}/assets/ehr_event_modelling/assets:/data/_cache:rw
+    - workspace-data:/workspace/data:rw
+    - ${SAMPLE_METADATA_TASK_DIR}/tests:/tests:rw
+    - ${SAMPLE_METADATA_TASK_DIR}/environment/bootstrap.sh:/bootstrap.sh:ro
+    - ${SAMPLE_METADATA_TASK_DIR}/environment/stage_data.py:/opt/ehr_event_modelling/stage_data.py:ro
+    command:
+    - /bin/bash
+    - /bootstrap.sh
+    x-local: true
+volumes:
+  workspace-data: null

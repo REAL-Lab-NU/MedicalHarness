@@ -1,0 +1,51 @@
+{
+  "_comment": [
+    "OpenClaw user config for the MedicalHarness study (harness.yaml user_config). The harness-bench openclaw",
+    "adapter rewrites models.providers.vllm.baseUrl to the usage proxy at episode start. Replace __VLLM_PORT__.",
+    "",
+    "maxTokens 65536: the default 16k output cap truncated tool calls and zeroed 15/32 calc tasks before it was raised.",
+    "timeoutSeconds 1800: uniform request timeout across every harness in the study.",
+    "The harness.yaml entry carries timeout_sec 3600 (the harness value wins over task.yaml); the original 900s",
+    "wall clock timed out 6/32 calc tasks.",
+    "",
+    "browser: OpenClaw drives the study's headless Chrome through CDP with its NATIVE browser tool. attachOnly",
+    "means it never launches its own browser; evaluateEnabled=false is the JavaScript ban that the MCP rows",
+    "enforce with mcp_browser_no_js.py (upstream healthadmin declares javascript: false); ssrfPolicy must admit",
+    "loopback or the portal on 127.0.0.1:3002 is refused. Per-slot copies differ only in cdpUrl.",
+    "",
+    "Stated caveat for the healthadmin column: OpenClaw is the ONLY harness on its own browser; the other five",
+    "share one Playwright MCP. The OpenClaw-vs-rest gap on that column mixes 'native vs generic browser' in.",
+    "",
+    "memory.search.remote is an OpenClaw default that names an embedding model; with the study model it is",
+    "never reached. Invocation: openclaw agent --local --model vllm/qwen36-35b-a3b-260k."
+  ],
+  "models": {
+    "providers": {
+      "vllm": {
+        "baseUrl": "http://127.0.0.1:__VLLM_PORT__/v1",
+        "api": "openai-completions",
+        "auth": "api-key",
+        "apiKey": "not-needed",
+        "models": [
+          {
+            "id": "qwen36-35b-a3b-260k",
+            "name": "Qwen3.6 35B A3B (local vLLM)",
+            "contextWindow": 262144,
+            "maxTokens": 65536
+          }
+        ],
+        "timeoutSeconds": 1800
+      }
+    }
+  },
+  "browser": {
+    "enabled": true,
+    "cdpUrl": "http://127.0.0.1:__CDP_PORT__",
+    "attachOnly": true,
+    "evaluateEnabled": false,
+    "ssrfPolicy": {
+      "dangerouslyAllowPrivateNetwork": true,
+      "allowedHostnames": ["127.0.0.1", "localhost"]
+    }
+  }
+}

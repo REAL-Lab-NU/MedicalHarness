@@ -1,0 +1,24 @@
+# Generated from external/HealthAgentBench/tasks/ehr_to_meds_etl/environment/docker-compose.yaml
+# (synthesised: upstream has Dockerfile only). main: x-default, network_mode none, fixed image tag; bootstrap keeps egress for
+# cold-cache fetches. Paths interpolate SAMPLE_METADATA_TASK_DIR / SAMPLE_METADATA_HAB_ROOT,
+# which Inspect exports from sample.metadata (docker.py:625 resolve_config_environment).
+services:
+  main:
+    build:
+      context: ${SAMPLE_METADATA_TASK_DIR}/environment
+      dockerfile: Dockerfile
+    image: medicalharness/healthagentbench-ehr_to_meds_etl:6caf439
+    x-local: true
+    x-default: true
+    network_mode: none
+    init: true
+    command:
+    - sh
+    - -c
+    - sleep infinity
+    stop_grace_period: 1s
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8192M

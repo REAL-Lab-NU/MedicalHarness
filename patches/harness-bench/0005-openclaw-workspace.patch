@@ -1,0 +1,41 @@
+diff --git a/src/harnessbench/adapters/openclaw.py b/src/harnessbench/adapters/openclaw.py
+--- a/src/harnessbench/adapters/openclaw.py
++++ b/src/harnessbench/adapters/openclaw.py
+@@ -20,6 +20,11 @@
+ ) -> None:
+     data = json.loads(user_config.read_text(encoding="utf-8"))
+     data.setdefault("agents", {}).setdefault("defaults", {})["workspace"] = str(workspace)
++    # An explicit per-agent workspace overrides the defaults. Every agent in
++    # this isolated task must see the same fixture and submission directory.
++    for agent in data["agents"].get("list", []):
++        if isinstance(agent, dict):
++            agent["workspace"] = str(workspace)
+     if proxy_base_url and proxy_routes_file is not None:
+         routes: dict[str, dict[str, str]] = {}
+         providers = ((data.get("models") or {}).get("providers") or {})
+@@ -100,15 +105,12 @@
+         openclaw_home = isolated_home / ".openclaw"
+         openclaw_home.mkdir(parents=True, exist_ok=True)
+         # _sync_minimal_auth_state(openclaw_home, user_config)
+-        openclaw_workspace = openclaw_home / "workspace"
+-        openclaw_workspace.mkdir(parents=True, exist_ok=True)
+-
+         sandbox_user_config = openclaw_home / "openclaw_src.json"
+         shutil.copy2(user_config, sandbox_user_config)
+         merged_cfg = openclaw_home / "openclaw.json"
+         _merge_user_config(
+             sandbox_user_config,
+-            openclaw_workspace,
++            ctx.workspace,
+             merged_cfg,
+             proxy_base_url=str(ctx.env.get("HARNESSBENCH_LLM_PROXY_URL") or ""),
+             proxy_routes_file=Path(ctx.env["HARNESSBENCH_LLM_PROXY_ROUTES"]) if ctx.env.get("HARNESSBENCH_LLM_PROXY_ROUTES") else None,
+@@ -134,7 +136,7 @@
+             env["OPENCLAW_AGENT_WORKSPACE_DIR"] = str(ctx.workspace.resolve())
+         completed = subprocess.run(
+             cmd,
+-            cwd=str(ctx.sandbox),
++            cwd=str(ctx.workspace),
+             text=True,
+             capture_output=True,
+             timeout=ctx.timeout_sec,

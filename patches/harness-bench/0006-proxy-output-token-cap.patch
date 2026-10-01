@@ -1,0 +1,84 @@
+--- a/src/harnessbench/usage_proxy.py
++++ b/src/harnessbench/usage_proxy.py
+@@ -161,6 +161,65 @@
+     return json.dumps(payload).encode("utf-8")
+ 
+ 
++def _output_token_limit() -> int | None:
++    raw = os.environ.get("HB_MAX_OUTPUT_TOKENS")
++    if raw is None:
++        return None
++    try:
++        limit = int(raw)
++    except ValueError as exc:
++        raise ValueError("HB_MAX_OUTPUT_TOKENS must be a positive integer") from exc
++    if limit <= 0:
++        raise ValueError("HB_MAX_OUTPUT_TOKENS must be a positive integer")
++    return limit
++
++
++def _cap_output_tokens(body: bytes, path: str) -> bytes:
++    """Apply an opt-in upper bound across the three supported generation APIs.
++
++    Keep smaller harness budgets; inject a budget when the harness omitted it.
++    This is independent of sampling pins, including for Responses input payloads.
++    Unset HB_MAX_OUTPUT_TOKENS preserves the original request exactly.
++    """
++    limit = _output_token_limit()
++    if limit is None:
++        return body
++    endpoint = urlsplit(path).path.rstrip("/")
++    if endpoint.endswith("/chat/completions"):
++        default_field = "max_tokens"
++    elif endpoint.endswith("/responses"):
++        default_field = "max_output_tokens"
++    elif endpoint.endswith("/messages"):
++        default_field = "max_tokens"
++    else:
++        return body
++    try:
++        payload = json.loads(body)
++    except (ValueError, UnicodeDecodeError):
++        return body
++    if not isinstance(payload, dict):
++        return body
++    fields = [default_field]
++    if endpoint.endswith("/chat/completions") and "max_completion_tokens" in payload:
++        fields = ["max_completion_tokens"]
++        if "max_tokens" in payload:
++            fields.append("max_tokens")
++    for field in fields:
++        current = payload.get(field)
++        if current is None:
++            payload[field] = limit
++        elif isinstance(current, (int, float, str)) and not isinstance(current, bool):
++            try:
++                numeric = float(current)
++            except (ValueError, OverflowError):
++                continue
++            # Upstream integer validation also accepts integral floats/strings.
++            if numeric.is_integer() and numeric > limit:
++                payload[field] = limit
++        # Invalid client values remain visible as upstream validation errors.
++    return json.dumps(payload).encode("utf-8")
++
++
+ def _lookup_route(routes_file: Path, path: str) -> tuple[str, dict[str, Any], str] | None:
+     routes = _read_json(routes_file)
+     best_prefix = ""
+@@ -231,6 +290,7 @@
+ 
+         if self.command == "POST" and body:
+             body = _pin_sampling(body)
++            body = _cap_output_tokens(body, remainder)
+ 
+         headers = {
+             k: v
+@@ -346,6 +406,7 @@
+ 
+ class UsageProxy(AbstractContextManager["UsageProxy"]):
+     def __init__(self, routes_file: Path, log_file: Path, raw_dir: Path, task_id: str, session_id: str, model_id: str):
++        _output_token_limit()  # Fail before opening a listener on invalid configuration.
+         self.routes_file = routes_file
+         self.log_file = log_file
+         self.server = _UsageProxyServer(

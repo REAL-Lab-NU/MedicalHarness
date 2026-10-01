@@ -1,0 +1,59 @@
+{
+  "name": "healthadmin",
+  "bench": "healthadmin",
+  "axis": "interaction_recovery",
+  "version": "healthadminbench-v2",
+  "item_count": 135,
+  "licence": {
+    "items": "Apache-2.0 for upstream synthetic task definitions.",
+    "materials": "Apache-2.0 for the upstream portal source and synthetic sample data. Third-party dependencies retain their own terms."
+  },
+  "upstream": {
+    "source": {
+      "repo": "https://github.com/ethan-kinetic/HealthAdminBench",
+      "commit": "e71a8f4d6923037805b7f51fbbf608d12ea56cf5",
+      "tasks_root": "benchmark/v2/tasks",
+      "task_manifest_sha256": "342d31fa1d443e3b8a6f7e2aa1ddb29772bce10e027a6495a0b14f960b7f92d7"
+    }
+  },
+  "content_sha256_samples": "7f5724940d8a819e3bcc98f9bf4c5976b6255698706e68e61d17ca33b33d7fa7",
+  "content_sha256_gold": "61d7df4c188e1a572497744e70574ee4cc9a72410131dd30354de3f1ea2e3c93",
+  "data_root": {
+    "portal_source": "Use the pinned upstream checkout in upstream.source.",
+    "portal_base_url": {
+      "env_var": "HEALTHADMIN_PORTAL_BASE_URL",
+      "default": "http://127.0.0.1:3002"
+    },
+    "browser_cdp_url": {
+      "env_var": "HB_CDP_URL",
+      "default": "http://127.0.0.1:9222"
+    },
+    "prerequisites": "A built and running HealthAdminBench portal plus a Chromium browser with CDP enabled.",
+    "format_documentation": "docs/environment.md"
+  },
+  "sandbox_kind": "external_service",
+  "counts": {
+    "item_count": 135,
+    "task_count": 135,
+    "total_check_count": 1698,
+    "deterministic_check_count": 1177,
+    "llm_judge_check_count": 521,
+    "process_check_count": 473,
+    "outcome_check_count_including_judges": 1225,
+    "deterministic_outcome_check_count": 704,
+    "tasks_with_llm_judge_count": 135,
+    "tasks_without_llm_judge_count": 0,
+    "minimum_llm_judges_per_task": 1,
+    "maximum_llm_judges_per_task": 11
+  },
+  "schema": "medicalharness-bench-package-v1",
+  "selection": {
+    "file": "subset-v1.json",
+    "item_count": 24
+  },
+  "scoring": {
+    "outcome": "Deterministic checks on portal state.",
+    "process": "Deterministic interaction checks.",
+    "llm_judge": false
+  }
+}

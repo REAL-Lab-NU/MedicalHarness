@@ -1,0 +1,79 @@
+Subject: Bind ZeroClaw 0.8 agent tool roots to the benchmark fixture
+
+Apply after 0001-medicalharness-runner-changes.patch.
+
+Observed on installed ZeroClaw 0.8.5 (2026-09-09): content_search with no
+path or path='.', plus shell pwd, use <config-dir>/agents/<alias>/workspace.
+Neither subprocess cwd nor ZEROCLAW_WORKSPACE changes that per-agent root.
+allowed_roots grants absolute-path access but does not choose the default.
+Bind each configured agent's workspace.path to the task fixture, preserving
+the existing TOML, provider rewrites, risk profiles, and legacy behavior.
+
+Verified with five model-free regression tests and a localhost canned-provider
+canary against the actual installed binary. No real model was called.
+Prior Qwen ZeroClaw runs used the uncorrected environment; successful absolute
+searches do not establish equivalence for relative-tool behavior. Corrected
+runs must carry this environment revision; rerun Qwen for strict comparison.
+
+--- a/src/harnessbench/adapters/zeroclaw.py
++++ b/src/harnessbench/adapters/zeroclaw.py
+@@ -1,5 +1,6 @@
+ from __future__ import annotations
+
++import json
+ import os
+ import re
+ import shutil
+@@ -102,6 +103,43 @@
+     return re.sub(r"[^A-Za-z0-9_.-]+", "-", value).strip("-") or "x"
+
+
++def _bind_agent_workspaces(text: str, data: dict, workspace: Path) -> str:
++    """Bind 0.8 agent tool roots to the task, preserving the source TOML.
++
++    In 0.8.5 both shell cwd and relative file-tool paths use the agent workspace,
++    not subprocess cwd or ZEROCLAW_WORKSPACE. allowed_roots only grants access.
++    """
++    agents = data.get("agents")
++    if not isinstance(agents, dict):
++        return text
++    rendered_path = json.dumps(str(workspace.resolve()), ensure_ascii=False)
++    for alias, agent in agents.items():
++        if not isinstance(agent, dict):
++            continue
++        quoted_alias = json.dumps(str(alias), ensure_ascii=False)
++        alias_forms = [re.escape(quoted_alias)]
++        if re.fullmatch(r"[A-Za-z0-9_-]+", str(alias)):
++            alias_forms.append(re.escape(str(alias)))
++        if "'" not in str(alias):
++            alias_forms.append(re.escape(f"'{alias}'"))
++        section = re.compile(
++            r"(?ms)^\[agents\.(?:" + "|".join(alias_forms)
++            + r")\.workspace\][ \t]*(?:#[^\n]*)?\n(.*?)(?=^\[|\Z)"
++        )
++        match = section.search(text)
++        path_line = f"path = {rendered_path}"
++        if match:
++            block = match.group(0)
++            if re.search(r"(?m)^[ \t]*path[ \t]*=", block):
++                block = re.sub(r"(?m)^[ \t]*path[ \t]*=[^\n]*", lambda _: path_line, block)
++            else:
++                block = block.rstrip() + "\n" + path_line + "\n"
++            text = text[:match.start()] + block + text[match.end():]
++        else:
++            text = text.rstrip() + f"\n\n[agents.{quoted_alias}.workspace]\n{path_line}\n"
++    return text
++
++
+ def _merge_user_config(
+     user_config: Path,
+     out_path: Path,
+@@ -149,6 +187,8 @@
+         text = _rewrite_provider_uris(
+             text, data, proxy_base_url=proxy_base_url, proxy_routes_file=proxy_routes_file)
+
++    text = _bind_agent_workspaces(text, data, workspace)
++
+     # 0.8 dropped the top-level [autonomy] table; filesystem roots now live on the risk profile the
+     # agent references. Write whichever the config actually uses, so neither version gets a stale key.
+     uses_risk_profiles = isinstance(data.get("risk_profiles"), dict) and data["risk_profiles"]

@@ -1,0 +1,289 @@
+diff --git a/src/harnessbench/adapters/agent_isolation.py b/src/harnessbench/adapters/agent_isolation.py
+new file mode 100644
+index 0000000..68370db
+--- /dev/null
++++ b/src/harnessbench/adapters/agent_isolation.py
+@@ -0,0 +1,146 @@
++"""Opt-in filesystem isolation of agent subprocesses, never fixtures or graders.
++
++This deployment hides benchmark repositories, old episode artifacts, and global
++agent memories, then exposes only this episode and its runtime configuration.
++It deliberately shares localhost networking for the model proxy and browser CDP.
++"""
++from __future__ import annotations
++
++import json
++import os
++from pathlib import Path
++import pwd
++import shutil
++
++from harnessbench.models import AdapterRunContext
++
++
++def _json_paths(env: dict[str, str], name: str) -> list[Path]:
++    value = json.loads(env.get(name, "[]"))
++    if not isinstance(value, list) or any(not isinstance(p, str) or not p for p in value):
++        raise ValueError(f"{name} must be a JSON array of nonempty absolute paths")
++    paths = [Path(p) for p in value]
++    if any(not p.is_absolute() for p in paths):
++        raise ValueError(f"{name} paths must be absolute")
++    return paths
++
++
++def _within(path: Path, parent: Path) -> bool:
++    return path == parent or parent in path.parents
++
++
++def _existing(paths: list[Path]) -> list[Path]:
++    return sorted({p.absolute() for p in paths if p.exists()}, key=lambda p: (len(p.parts), str(p)))
++
++
++def isolate_agent_command(ctx: AdapterRunContext, command: list[str], env: dict[str, str]) -> list[str]:
++    """Wrap only a final native-agent spawn; disabled preserves its exact command.
++
++    Scheduler contract: HB_AGENT_ISOLATION=1, optional JSON arrays
++    HB_AGENT_ISOLATION_HIDE_PATHS and HB_AGENT_ISOLATION_ALLOW_PATHS.
++    ALLOW paths are read-only. The current sandbox is the sole writable exception
++    inside hidden benchmark trees. Child tools/MCP processes inherit the mounts.
++    """
++    settings = dict(env)
++    settings.update(ctx.env)
++    if settings.get("HB_AGENT_ISOLATION", "0") != "1":
++        return command
++    bwrap = shutil.which("bwrap", path=env.get("PATH"))
++    if not bwrap:
++        raise RuntimeError("HB_AGENT_ISOLATION=1 requires bubblewrap; refusing unisolated execution")
++
++    repo = Path(settings.get("MEDHARNESS_REPO", "/data/ios4132/projects/MedicalHarness")).resolve()
++    bench = repo.parent / "MedicalHarness-bench"
++    scratch = Path("/scr/ios4132/medharness")
++    account_home = Path(pwd.getpwuid(os.getuid()).pw_dir)
++    sandbox = ctx.sandbox.resolve()
++    workspace = ctx.workspace.resolve()
++    if not _within(workspace, sandbox):
++        raise ValueError("Agent workspace must be inside its episode sandbox")
++
++    hide = [repo, bench, scratch]
++    hide += [account_home / name for name in (".codex", ".claude", ".openclaw", ".zeroclaw", ".hermes")]
++    hide += _json_paths(settings, "HB_AGENT_ISOLATION_HIDE_PATHS")
++    # Task definitions include oracle modules and may contain gold. Fixtures have
++    # already been copied into the sandbox by the outer, unrestricted runner.
++    if ctx.task.task_dir is not None:
++        hide.append(ctx.task.task_dir.resolve().parent)
++    # Mask canonical targets too, so a symlink spelling cannot reveal the source.
++    hide = _existing(hide + [p.resolve() for p in hide])
++    hide = [p for p in hide if not any(_within(p, earlier) for earlier in hide if earlier != p and len(earlier.parts) < len(p.parts))]
++    if any(p == Path("/") or p == sandbox or _within(p, sandbox) for p in hide):
++        raise ValueError("Refusing an invalid isolation hide root")
++    if not any(_within(sandbox, p) for p in hide):
++        raise ValueError("Current sandbox must be below a hidden benchmark root")
++
++    runtime_paths = [
++        repo / ".venv",
++        repo / "scripts/mcp_browser_no_js.py",
++        scratch / "bin",
++        scratch / "lib",
++        scratch / "mcp/node_modules",
++        account_home / ".hermes/hermes-agent",
++        account_home / ".hermes/bin",
++        account_home / ".hermes/node",
++    ]
++    allow = _existing(runtime_paths)
++    explicit_allow = _json_paths(settings, "HB_AGENT_ISOLATION_ALLOW_PATHS")
++    for path in explicit_allow:
++        if not path.exists():
++            raise FileNotFoundError(f"Required agent isolation allow path is missing: {path}")
++    allow += explicit_allow
++    source_config = ctx.model_config.get("user_config")
++    if source_config:
++        source = Path(str(source_config)).expanduser()
++        if not source.is_absolute():
++            source = Path.cwd() / source
++        if source.is_file():
++            allow.append(source.parent)
++    # Claude's generic_cli wrapper loads its sibling mcp.json. Bind this private
++    # config directory, not the entire scheduler tree or the registry's siblings.
++    if ctx.model_config.get("adapter") == "generic_cli" or ctx.model_config.get("framework") == "claude-code":
++        executable = Path(command[0])
++        if executable.is_absolute() and executable.is_file() and any(_within(executable, p) for p in hide):
++            allow.append(executable.parent)
++    allow = _existing(allow)
++    for path in allow:
++        if path in hide or any(_within(hidden, path) for hidden in hide):
++            raise ValueError(f"Allow path would expose a hidden root: {path}")
++        if _within(path, sandbox):
++            continue
++        if not any(_within(path, hidden) for hidden in hide):
++            # These paths are already visible through the unchanged host tree.
++            continue
++
++    # A normal bind makes inherited device mounts nodev; Claude's Bun runtime
++    # aborts on startup in that setup. Preserve the host device tree explicitly.
++    prefix = [bwrap, "--bind", "/", "/", "--dev-bind", "/dev", "/dev", "--unshare-pid", "--proc", "/proc",
++              "--die-with-parent", "--new-session", "--tmpfs", "/tmp"]
++    for path in hide:
++        if path.is_dir():
++            prefix += ["--tmpfs", str(path)]
++        else:
++            prefix += ["--ro-bind", "/dev/null", str(path)]
++    # Empty parent mounts remain writable until bubblewrap has created the
++    # precise nested bind destinations. Remount their roots read-only last.
++    for path in allow:
++        if any(_within(path, hidden) for hidden in hide) and not _within(path, sandbox):
++            prefix += ["--ro-bind", str(path), str(path)]
++    prefix += ["--bind", str(sandbox), str(sandbox)]
++    for path in hide:
++        if path.is_dir():
++            prefix += ["--remount-ro", str(path)]
++    prefix += ["--chdir", str(workspace), "--setenv", "TMPDIR", "/tmp",
++               "--setenv", "TMP", "/tmp", "--setenv", "TEMP", "/tmp",
++               "--setenv", "HB_AGENT_ISOLATION_ACTIVE", "1", "--"]
++
++    manifest = {
++        "version": 1, "enabled": True, "scope": "agent-and-child-tools-only",
++        "hide_paths": [str(p) for p in hide],
++        "read_only_allow_paths": [str(p) for p in allow],
++        "writable_sandbox": str(sandbox), "workspace": str(workspace),
++        "private_pid_namespace": True, "private_tmp": True, "network": "host-localhost-preserved",
++        "wrapper_prefix": prefix, "native_executable": command[0],
++    }
++    (sandbox / "agent-isolation.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
++    return [*prefix, *command]
+diff --git a/src/harnessbench/adapters/codex.py b/src/harnessbench/adapters/codex.py
+index 2b00581..5b31bf5 100644
+--- a/src/harnessbench/adapters/codex.py
++++ b/src/harnessbench/adapters/codex.py
+@@ -13,6 +13,7 @@ from typing import Any, TextIO
+ from harnessbench.adapters.base import BaseAdapter
+ from harnessbench.models import AdapterRunContext, AdapterRunResult
+ from harnessbench.usage_proxy import register_routes
++from harnessbench.adapters.agent_isolation import isolate_agent_command
+ 
+ 
+ def _project_root() -> Path:
+@@ -561,7 +562,7 @@ class CodexAdapter(BaseAdapter):
+         print(f"[harnessbench:codex] stderr_log={stderr_log_file}", flush=True)
+ 
+         proc = subprocess.Popen(
+-            cmd,
++            isolate_agent_command(ctx, cmd, env),
+             cwd=str(ctx.workspace),
+             text=True,
+             stdin=subprocess.PIPE,
+diff --git a/src/harnessbench/adapters/generic_cli.py b/src/harnessbench/adapters/generic_cli.py
+index ef4cabd..69748dd 100644
+--- a/src/harnessbench/adapters/generic_cli.py
++++ b/src/harnessbench/adapters/generic_cli.py
+@@ -5,6 +5,7 @@ import subprocess
+ 
+ from harnessbench.adapters.base import BaseAdapter
+ from harnessbench.models import AdapterRunContext, AdapterRunResult
++from harnessbench.adapters.agent_isolation import isolate_agent_command
+ 
+ 
+ class GenericCliAdapter(BaseAdapter):
+@@ -40,7 +41,7 @@ class GenericCliAdapter(BaseAdapter):
+         if ctx.env.get("HARNESSBENCH_LLM_PROXY_ROUTES"):
+             env["HARNESSBENCH_LLM_PROXY_ROUTES"] = str(ctx.env["HARNESSBENCH_LLM_PROXY_ROUTES"])
+         completed = subprocess.run(
+-            cmd,
++            isolate_agent_command(ctx, cmd, env),
+             cwd=str(ctx.workspace),
+             text=True,
+             capture_output=True,
+diff --git a/src/harnessbench/adapters/hermes.py b/src/harnessbench/adapters/hermes.py
+index daa6323..445a3c4 100644
+--- a/src/harnessbench/adapters/hermes.py
++++ b/src/harnessbench/adapters/hermes.py
+@@ -9,6 +9,7 @@ from pathlib import Path
+ from harnessbench.adapters.base import BaseAdapter
+ from harnessbench.models import AdapterRunContext, AdapterRunResult
+ from harnessbench.usage_proxy import register_routes
++from harnessbench.adapters.agent_isolation import isolate_agent_command
+ 
+ 
+ def _project_root() -> Path:
+@@ -311,7 +312,7 @@ class HermesAgentAdapter(BaseAdapter):
+         env["HERMES_CONFIG_PATH"] = str(merged_cfg)
+ 
+         completed = subprocess.run(
+-            cmd,
++            isolate_agent_command(ctx, cmd, env),
+             cwd=str(ctx.workspace),
+             text=True,
+             capture_output=True,
+diff --git a/src/harnessbench/adapters/openclaw.py b/src/harnessbench/adapters/openclaw.py
+index 5a5e13f..240500e 100644
+--- a/src/harnessbench/adapters/openclaw.py
++++ b/src/harnessbench/adapters/openclaw.py
+@@ -9,6 +9,7 @@ from pathlib import Path
+ from harnessbench.adapters.base import BaseAdapter
+ from harnessbench.models import AdapterRunContext, AdapterRunResult
+ from harnessbench.usage_proxy import register_routes
++from harnessbench.adapters.agent_isolation import isolate_agent_command
+ 
+ 
+ def _merge_user_config(
+@@ -138,7 +139,7 @@ class OpenClawAdapter(BaseAdapter):
+         if bool(ctx.model_config.get("use_gateway")):
+             env["OPENCLAW_AGENT_WORKSPACE_DIR"] = str(ctx.workspace.resolve())
+         completed = subprocess.run(
+-            cmd,
++            isolate_agent_command(ctx, cmd, env),
+             cwd=str(ctx.workspace),
+             text=True,
+             capture_output=True,
+diff --git a/src/harnessbench/adapters/zeroclaw.py b/src/harnessbench/adapters/zeroclaw.py
+index f636ed7..6ad1e68 100644
+--- a/src/harnessbench/adapters/zeroclaw.py
++++ b/src/harnessbench/adapters/zeroclaw.py
+@@ -11,6 +11,7 @@ from pathlib import Path
+ from harnessbench.adapters.base import BaseAdapter
+ from harnessbench.models import AdapterRunContext, AdapterRunResult
+ from harnessbench.usage_proxy import register_routes
++from harnessbench.adapters.agent_isolation import isolate_agent_command
+ 
+ 
+ def _project_root() -> Path:
+@@ -300,7 +301,7 @@ class ZeroClawAdapter(BaseAdapter):
+         env["ZEROCLAW_SESSION_ID"] = ctx.session_id
+ 
+         completed = subprocess.run(
+-            cmd,
++            isolate_agent_command(ctx, cmd, env),
+             cwd=str(ctx.workspace),
+             text=True,
+             capture_output=True,
+diff --git a/src/harnessbench/usage_proxy.py b/src/harnessbench/usage_proxy.py
+index 616e365..04d8da4 100644
+--- a/src/harnessbench/usage_proxy.py
++++ b/src/harnessbench/usage_proxy.py
+@@ -133,7 +133,7 @@ def _extract_payload(decoded_text: str, response_headers: list[tuple[str, str]])
+     return last_obj, parse_error
+ 
+ 
+-def _pin_sampling(body: bytes) -> bytes:
++def _pin_sampling(body: bytes, path: str = "") -> bytes:
+     """Force sampling parameters onto an outbound completion request.
+ 
+     Product harnesses do not all expose temperature/seed (OpenClaw exposes neither), so one run of one
+@@ -153,7 +153,8 @@ def _pin_sampling(body: bytes) -> bytes:
+         payload = json.loads(body)
+     except (ValueError, UnicodeDecodeError):
+         return body
+-    if not isinstance(payload, dict) or "messages" not in payload:
++    is_responses = urlsplit(path).path.rstrip("/").endswith("/responses")
++    if not isinstance(payload, dict) or ("messages" not in payload and not is_responses):
+         return body
+     for key, raw in pins.items():
+         if raw is None or key in payload:
+@@ -306,7 +307,7 @@ class _UsageProxyHandler(BaseHTTPRequestHandler):
+             body = self.rfile.read(int(content_length))
+ 
+         if self.command == "POST" and body:
+-            body = _pin_sampling(body)
++            body = _pin_sampling(body, remainder)
+             body = _cap_output_tokens(body, remainder)
+ 
+         headers = {

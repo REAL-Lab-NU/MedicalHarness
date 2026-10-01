@@ -1,0 +1,3 @@
+upstream: https://github.com/Qihoo360/harness-bench.git
+pinned commit: 1025086a446653702b80cfb48babbeec35db6b2c
+commit date: 2026-06-23 10:22:42 +0800

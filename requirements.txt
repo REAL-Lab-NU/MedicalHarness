@@ -1,0 +1,2 @@
+# Same runtime as `pip install -e .`; use one method, not both.
+-e .

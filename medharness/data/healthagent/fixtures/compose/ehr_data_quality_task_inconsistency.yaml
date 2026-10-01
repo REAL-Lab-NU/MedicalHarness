@@ -1,0 +1,53 @@
+# Generated from external/HealthAgentBench/tasks/ehr_data_quality_task_inconsistency/environment/docker-compose.yaml
+# (upstream file). main: x-default, network_mode none, fixed image tag; bootstrap keeps egress for
+# cold-cache fetches. Paths interpolate SAMPLE_METADATA_TASK_DIR / SAMPLE_METADATA_HAB_ROOT,
+# which Inspect exports from sample.metadata (docker.py:625 resolve_config_environment).
+services:
+  bootstrap:
+    image: medicalharness/healthagentbench-ehr_data_quality_task_inconsistency:6caf439
+    build:
+      context: ${SAMPLE_METADATA_TASK_DIR}
+      dockerfile: environment/Dockerfile
+    volumes:
+    - ${SAMPLE_METADATA_TASK_DIR}/environment/bootstrap_inputs:/opt/bootstrap_inputs:ro
+    - ${SAMPLE_METADATA_TASK_DIR}/environment/bootstrap.sh:/bootstrap.sh:ro
+    - ${SAMPLE_METADATA_TASK_DIR}/tests:/tests:ro
+    - ${SAMPLE_METADATA_HAB_ROOT}/assets/ehr_data_quality/assets/raw_cache:/data/_src/raw_cache:rw
+    - task-data:/workspace/data:rw
+    environment:
+    - PYTHONUNBUFFERED=1
+    command:
+    - /bin/bash
+    - /bootstrap.sh
+    x-local: true
+  main:
+    image: medicalharness/healthagentbench-ehr_data_quality_task_inconsistency:6caf439
+    build:
+      context: ${SAMPLE_METADATA_TASK_DIR}
+      dockerfile: environment/Dockerfile
+    depends_on:
+      bootstrap:
+        condition: service_completed_successfully
+    volumes:
+    - task-data:/workspace/data:ro
+    environment:
+    - PYTHONUNBUFFERED=1
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4096M
+        reservations:
+          cpus: '1'
+          memory: 2G
+    x-local: true
+    x-default: true
+    network_mode: none
+    init: true
+    command:
+    - sh
+    - -c
+    - sleep infinity
+    stop_grace_period: 1s
+volumes:
+  task-data: null

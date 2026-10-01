@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "medharness"
+version = "0.2.0"
+description = "MedicalHarness: product-harness evaluation and the MH-Lab LangGraph harness"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "langgraph==1.2.11", "langchain-core==1.6.2", "langchain-openai==1.6.2",
+  "langchain-mcp-adapters==0.3.2", "PyYAML>=6.0,<7", "jmespath>=1.0,<2",
+]
+
+[project.optional-dependencies]
+browser = ["playwright==1.48.0"]
+dev = ["pytest>=8,<10"]
+
+[project.scripts]
+medicalharness = "medharness.release:main"
+
+[tool.setuptools.packages.find]
+include = ["medharness*"]
+
+[tool.setuptools.package-data]
+"medharness.data" = ["*/samples.jsonl", "*/gold.jsonl", "*/manifest.json", "*/subset-v1.json", "*/fixtures/**/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.setuptools.exclude-package-data]
+"medharness.data" = ["memory/samples.jsonl", "memory/gold.jsonl", "memory/fixtures/**/*"]

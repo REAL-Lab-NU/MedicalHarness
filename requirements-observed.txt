@@ -1,0 +1,7 @@
+# Direct dependencies observed in the MH-Lab study runtime, not a full lockfile.
+# The release pins these in pyproject.toml and resolves compatible transitive dependencies.
+langgraph==1.2.11
+langchain-core==1.6.2
+langchain-openai==1.6.2
+langchain-mcp-adapters==0.3.2
+# Other observed dependencies (informational): openai 3.11.0, httpx 0.28.1, pydantic 2.13.5.

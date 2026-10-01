@@ -1,0 +1,689 @@
+{
+  "version": "healthadmin-subset-v1",
+  "rule": {
+    "excluded_families": {
+      "emr-medium": "primary metric is a conjunction over 9-17 outcome checks (median 13)"
+    },
+    "outcome_check_band": [
+      2,
+      8
+    ],
+    "min_process_checks": 1,
+    "quota": {
+      "denial-medium": 6,
+      "denial-hard": 4,
+      "emr-easy": 4,
+      "emr-hard": 6,
+      "fax-hard": 4
+    },
+    "order": "first N per family by numeric task index",
+    "uses_no_observed_outcome": true
+  },
+  "n": 24,
+  "task_ids": [
+    "denial-medium-1",
+    "denial-medium-2",
+    "denial-medium-3",
+    "denial-medium-4",
+    "denial-medium-5",
+    "denial-medium-6",
+    "denial-hard-1",
+    "denial-hard-2",
+    "denial-hard-3",
+    "denial-hard-4",
+    "emr-easy-2",
+    "emr-easy-3",
+    "emr-easy-4",
+    "emr-easy-5",
+    "emr-hard-9",
+    "emr-hard-10",
+    "emr-hard-11",
+    "emr-hard-12",
+    "emr-hard-13",
+    "emr-hard-14",
+    "fax-hard-1",
+    "fax-hard-2",
+    "fax-hard-3",
+    "fax-hard-4"
+  ],
+  "tasks": [
+    {
+      "id": "denial-medium-1",
+      "family": "denial-medium",
+      "difficulty": "medium",
+      "category": "electronic_appeals",
+      "outcome_checks": 4,
+      "process_checks": 7
+    },
+    {
+      "id": "denial-medium-2",
+      "family": "denial-medium",
+      "difficulty": "medium",
+      "category": "electronic_appeals",
+      "outcome_checks": 4,
+      "process_checks": 7
+    },
+    {
+      "id": "denial-medium-3",
+      "family": "denial-medium",
+      "difficulty": "medium",
+      "category": "electronic_appeals",
+      "outcome_checks": 4,
+      "process_checks": 7
+    },
+    {
+      "id": "denial-medium-4",
+      "family": "denial-medium",
+      "difficulty": "medium",
+      "category": "electronic_appeals",
+      "outcome_checks": 4,
+      "process_checks": 7
+    },
+    {
+      "id": "denial-medium-5",
+      "family": "denial-medium",
+      "difficulty": "medium",
+      "category": "electronic_appeals",
+      "outcome_checks": 4,
+      "process_checks": 7
+    },
+    {
+      "id": "denial-medium-6",
+      "family": "denial-medium",
+      "difficulty": "medium",
+      "category": "electronic_appeals",
+      "outcome_checks": 3,
+      "process_checks": 4
+    },
+    {
+      "id": "denial-hard-1",
+      "family": "denial-hard",
+      "difficulty": "hard",
+      "category": "ambiguous_decision",
+      "outcome_checks": 4,
+      "process_checks": 5
+    },
+    {
+      "id": "denial-hard-2",
+      "family": "denial-hard",
+      "difficulty": "hard",
+      "category": "ambiguous_decision",
+      "outcome_checks": 2,
+      "process_checks": 4
+    },
+    {
+      "id": "denial-hard-3",
+      "family": "denial-hard",
+      "difficulty": "hard",
+      "category": "ambiguous_decision",
+      "outcome_checks": 2,
+      "process_checks": 3
+    },
+    {
+      "id": "denial-hard-4",
+      "family": "denial-hard",
+      "difficulty": "hard",
+      "category": "ambiguous_decision",
+      "outcome_checks": 2,
+      "process_checks": 2
+    },
+    {
+      "id": "emr-easy-2",
+      "family": "emr-easy",
+      "difficulty": "easy",
+      "category": "verify_coverage",
+      "outcome_checks": 2,
+      "process_checks": 1
+    },
+    {
+      "id": "emr-easy-3",
+      "family": "emr-easy",
+      "difficulty": "easy",
+      "category": "verify_insurance_active",
+      "outcome_checks": 2,
+      "process_checks": 1
+    },
+    {
+      "id": "emr-easy-4",
+      "family": "emr-easy",
+      "difficulty": "easy",
+      "category": "verify_diagnosis_codes",
+      "outcome_checks": 2,
+      "process_checks": 1
+    },
+    {
+      "id": "emr-easy-5",
+      "family": "emr-easy",
+      "difficulty": "easy",
+      "category": "verify_hmo_referral",
+      "outcome_checks": 2,
+      "process_checks": 1
+    },
+    {
+      "id": "emr-hard-9",
+      "family": "emr-hard",
+      "difficulty": "hard",
+      "category": "error_detection",
+      "outcome_checks": 3,
+      "process_checks": 3
+    },
+    {
+      "id": "emr-hard-10",
+      "family": "emr-hard",
+      "difficulty": "hard",
+      "category": "error_detection",
+      "outcome_checks": 3,
+      "process_checks": 5
+    },
+    {
+      "id": "emr-hard-11",
+      "family": "emr-hard",
+      "difficulty": "hard",
+      "category": "error_detection",
+      "outcome_checks": 3,
+      "process_checks": 3
+    },
+    {
+      "id": "emr-hard-12",
+      "family": "emr-hard",
+      "difficulty": "hard",
+      "category": "error_detection",
+      "outcome_checks": 3,
+      "process_checks": 4
+    },
+    {
+      "id": "emr-hard-13",
+      "family": "emr-hard",
+      "difficulty": "hard",
+      "category": "error_detection",
+      "outcome_checks": 3,
+      "process_checks": 3
+    },
+    {
+      "id": "emr-hard-14",
+      "family": "emr-hard",
+      "difficulty": "hard",
+      "category": "error_detection",
+      "outcome_checks": 3,
+      "process_checks": 3
+    },
+    {
+      "id": "fax-hard-1",
+      "family": "fax-hard",
+      "difficulty": "hard",
+      "category": null,
+      "outcome_checks": 3,
+      "process_checks": 1
+    },
+    {
+      "id": "fax-hard-2",
+      "family": "fax-hard",
+      "difficulty": "hard",
+      "category": null,
+      "outcome_checks": 3,
+      "process_checks": 1
+    },
+    {
+      "id": "fax-hard-3",
+      "family": "fax-hard",
+      "difficulty": "hard",
+      "category": null,
+      "outcome_checks": 3,
+      "process_checks": 1
+    },
+    {
+      "id": "fax-hard-4",
+      "family": "fax-hard",
+      "difficulty": "hard",
+      "category": null,
+      "outcome_checks": 3,
+      "process_checks": 1
+    }
+  ],
+  "process_cell_undefined": [],
+  "quota_shortfall": {},
+  "excluded_count": 49,
+  "excluded": [
+    {
+      "id": "denial-medium-13",
+      "family": "denial-medium",
+      "difficulty": "medium",
+      "category": "followup_tracking",
+      "outcome_checks": 1,
+      "process_checks": 2,
+      "reason": "outcome checks 1 outside [2, 8]"
+    },
+    {
+      "id": "denial-medium-15",
+      "family": "denial-medium",
+      "difficulty": "medium",
+      "category": "followup_tracking",
+      "outcome_checks": 1,
+      "process_checks": 3,
+      "reason": "outcome checks 1 outside [2, 8]"
+    },
+    {
+      "id": "emr-easy-1",
+      "family": "emr-easy",
+      "difficulty": "easy",
+      "category": "no_auth_medicare",
+      "outcome_checks": 2,
+      "process_checks": 0,
+      "reason": "no deterministic process check; the process cell would be undefined"
+    },
+    {
+      "id": "emr-easy-11",
+      "family": "emr-easy",
+      "difficulty": "easy",
+      "category": "verify_appointment_past",
+      "outcome_checks": 2,
+      "process_checks": 0,
+      "reason": "no deterministic process check; the process cell would be undefined"
+    },
+    {
+      "id": "emr-easy-14",
+      "family": "emr-easy",
+      "difficulty": "easy",
+      "category": "verify_provider_missing",
+      "outcome_checks": 2,
+      "process_checks": 0,
+      "reason": "no deterministic process check; the process cell would be undefined"
+    },
+    {
+      "id": "emr-easy-18",
+      "family": "emr-easy",
+      "difficulty": "easy",
+      "category": "verify_member_id_invalid",
+      "outcome_checks": 2,
+      "process_checks": 0,
+      "reason": "no deterministic process check; the process cell would be undefined"
+    },
+    {
+      "id": "emr-hard-1",
+      "family": "emr-hard",
+      "difficulty": "hard",
+      "category": "calculation",
+      "outcome_checks": 11,
+      "process_checks": 7,
+      "reason": "outcome checks 11 outside [2, 8]"
+    },
+    {
+      "id": "emr-hard-2",
+      "family": "emr-hard",
+      "difficulty": "hard",
+      "category": "calculation",
+      "outcome_checks": 13,
+      "process_checks": 7,
+      "reason": "outcome checks 13 outside [2, 8]"
+    },
+    {
+      "id": "emr-hard-3",
+      "family": "emr-hard",
+      "difficulty": "hard",
+      "category": "calculation",
+      "outcome_checks": 13,
+      "process_checks": 7,
+      "reason": "outcome checks 13 outside [2, 8]"
+    },
+    {
+      "id": "emr-hard-4",
+      "family": "emr-hard",
+      "difficulty": "hard",
+      "category": "calculation",
+      "outcome_checks": 9,
+      "process_checks": 7,
+      "reason": "outcome checks 9 outside [2, 8]"
+    },
+    {
+      "id": "emr-hard-5",
+      "family": "emr-hard",
+      "difficulty": "hard",
+      "category": "multi_step",
+      "outcome_checks": 9,
+      "process_checks": 7,
+      "reason": "outcome checks 9 outside [2, 8]"
+    },
+    {
+      "id": "emr-hard-6",
+      "family": "emr-hard",
+      "difficulty": "hard",
+      "category": "multi_step",
+      "outcome_checks": 9,
+      "process_checks": 7,
+      "reason": "outcome checks 9 outside [2, 8]"
+    },
+    {
+      "id": "emr-hard-7",
+      "family": "emr-hard",
+      "difficulty": "hard",
+      "category": "multi_step",
+      "outcome_checks": 13,
+      "process_checks": 7,
+      "reason": "outcome checks 13 outside [2, 8]"
+    },
+    {
+      "id": "emr-hard-8",
+      "family": "emr-hard",
+      "difficulty": "hard",
+      "category": "multi_step",
+      "outcome_checks": 12,
+      "process_checks": 9,
+      "reason": "outcome checks 12 outside [2, 8]"
+    },
+    {
+      "id": "emr-hard-15",
+      "family": "emr-hard",
+      "difficulty": "hard",
+      "category": "clinical_judgment",
+      "outcome_checks": 10,
+      "process_checks": 7,
+      "reason": "outcome checks 10 outside [2, 8]"
+    },
+    {
+      "id": "emr-hard-16",
+      "family": "emr-hard",
+      "difficulty": "hard",
+      "category": "clinical_judgment",
+      "outcome_checks": 13,
+      "process_checks": 7,
+      "reason": "outcome checks 13 outside [2, 8]"
+    },
+    {
+      "id": "emr-hard-17",
+      "family": "emr-hard",
+      "difficulty": "hard",
+      "category": "urgent",
+      "outcome_checks": 11,
+      "process_checks": 7,
+      "reason": "outcome checks 11 outside [2, 8]"
+    },
+    {
+      "id": "emr-hard-18",
+      "family": "emr-hard",
+      "difficulty": "hard",
+      "category": "urgent",
+      "outcome_checks": 9,
+      "process_checks": 6,
+      "reason": "outcome checks 9 outside [2, 8]"
+    },
+    {
+      "id": "emr-hard-20",
+      "family": "emr-hard",
+      "difficulty": "hard",
+      "category": "urgent",
+      "outcome_checks": 12,
+      "process_checks": 7,
+      "reason": "outcome checks 12 outside [2, 8]"
+    },
+    {
+      "id": "emr-medium-1",
+      "family": "emr-medium",
+      "difficulty": "medium",
+      "category": "submit_auth_aetna",
+      "outcome_checks": 12,
+      "process_checks": 6,
+      "reason": "excluded family: primary metric is a conjunction over 9-17 outcome checks (median 13)"
+    },
+    {
+      "id": "emr-medium-2",
+      "family": "emr-medium",
+      "difficulty": "medium",
+      "category": "submit_auth_aetna",
+      "outcome_checks": 9,
+      "process_checks": 7,
+      "reason": "excluded family: primary metric is a conjunction over 9-17 outcome checks (median 13)"
+    },
+    {
+      "id": "emr-medium-3",
+      "family": "emr-medium",
+      "difficulty": "medium",
+      "category": "submit_auth_aetna",
+      "outcome_checks": 12,
+      "process_checks": 8,
+      "reason": "excluded family: primary metric is a conjunction over 9-17 outcome checks (median 13)"
+    },
+    {
+      "id": "emr-medium-4",
+      "family": "emr-medium",
+      "difficulty": "medium",
+      "category": "submit_auth_aetna",
+      "outcome_checks": 14,
+      "process_checks": 6,
+      "reason": "excluded family: primary metric is a conjunction over 9-17 outcome checks (median 13)"
+    },
+    {
+      "id": "emr-medium-5",
+      "family": "emr-medium",
+      "difficulty": "medium",
+      "category": "submit_auth_aetna",
+      "outcome_checks": 14,
+      "process_checks": 8,
+      "reason": "excluded family: primary metric is a conjunction over 9-17 outcome checks (median 13)"
+    },
+    {
+      "id": "emr-medium-6",
+      "family": "emr-medium",
+      "difficulty": "medium",
+      "category": "submit_auth_aetna",
+      "outcome_checks": 10,
+      "process_checks": 6,
+      "reason": "excluded family: primary metric is a conjunction over 9-17 outcome checks (median 13)"
+    },
+    {
+      "id": "emr-medium-7",
+      "family": "emr-medium",
+      "difficulty": "medium",
+      "category": "submit_auth_aetna",
+      "outcome_checks": 10,
+      "process_checks": 6,
+      "reason": "excluded family: primary metric is a conjunction over 9-17 outcome checks (median 13)"
+    },
+    {
+      "id": "emr-medium-8",
+      "family": "emr-medium",
+      "difficulty": "medium",
+      "category": "submit_auth_aetna",
+      "outcome_checks": 10,
+      "process_checks": 6,
+      "reason": "excluded family: primary metric is a conjunction over 9-17 outcome checks (median 13)"
+    },
+    {
+      "id": "emr-medium-9",
+      "family": "emr-medium",
+      "difficulty": "medium",
+      "category": "submit_auth_aetna",
+      "outcome_checks": 10,
+      "process_checks": 6,
+      "reason": "excluded family: primary metric is a conjunction over 9-17 outcome checks (median 13)"
+    },
+    {
+      "id": "emr-medium-10",
+      "family": "emr-medium",
+      "difficulty": "medium",
+      "category": "submit_auth_anthem",
+      "outcome_checks": 14,
+      "process_checks": 5,
+      "reason": "excluded family: primary metric is a conjunction over 9-17 outcome checks (median 13)"
+    },
+    {
+      "id": "emr-medium-11",
+      "family": "emr-medium",
+      "difficulty": "medium",
+      "category": "submit_auth_anthem",
+      "outcome_checks": 16,
+      "process_checks": 6,
+      "reason": "excluded family: primary metric is a conjunction over 9-17 outcome checks (median 13)"
+    },
+    {
+      "id": "emr-medium-12",
+      "family": "emr-medium",
+      "difficulty": "medium",
+      "category": "submit_auth_anthem",
+      "outcome_checks": 14,
+      "process_checks": 6,
+      "reason": "excluded family: primary metric is a conjunction over 9-17 outcome checks (median 13)"
+    },
+    {
+      "id": "emr-medium-13",
+      "family": "emr-medium",
+      "difficulty": "medium",
+      "category": "submit_auth_anthem",
+      "outcome_checks": 15,
+      "process_checks": 6,
+      "reason": "excluded family: primary metric is a conjunction over 9-17 outcome checks (median 13)"
+    },
+    {
+      "id": "emr-medium-14",
+      "family": "emr-medium",
+      "difficulty": "medium",
+      "category": "submit_auth_anthem",
+      "outcome_checks": 14,
+      "process_checks": 7,
+      "reason": "excluded family: primary metric is a conjunction over 9-17 outcome checks (median 13)"
+    },
+    {
+      "id": "emr-medium-15",
+      "family": "emr-medium",
+      "difficulty": "medium",
+      "category": "submit_auth_anthem",
+      "outcome_checks": 15,
+      "process_checks": 6,
+      "reason": "excluded family: primary metric is a conjunction over 9-17 outcome checks (median 13)"
+    },
+    {
+      "id": "emr-medium-16",
+      "family": "emr-medium",
+      "difficulty": "medium",
+      "category": "submit_auth_anthem",
+      "outcome_checks": 15,
+      "process_checks": 6,
+      "reason": "excluded family: primary metric is a conjunction over 9-17 outcome checks (median 13)"
+    },
+    {
+      "id": "emr-medium-17",
+      "family": "emr-medium",
+      "difficulty": "medium",
+      "category": "submit_auth_aetna",
+      "outcome_checks": 10,
+      "process_checks": 7,
+      "reason": "excluded family: primary metric is a conjunction over 9-17 outcome checks (median 13)"
+    },
+    {
+      "id": "emr-medium-18",
+      "family": "emr-medium",
+      "difficulty": "medium",
+      "category": "submit_auth_aetna",
+      "outcome_checks": 9,
+      "process_checks": 6,
+      "reason": "excluded family: primary metric is a conjunction over 9-17 outcome checks (median 13)"
+    },
+    {
+      "id": "emr-medium-19",
+      "family": "emr-medium",
+      "difficulty": "medium",
+      "category": "submit_auth_aetna",
+      "outcome_checks": 10,
+      "process_checks": 6,
+      "reason": "excluded family: primary metric is a conjunction over 9-17 outcome checks (median 13)"
+    },
+    {
+      "id": "emr-medium-20",
+      "family": "emr-medium",
+      "difficulty": "medium",
+      "category": "submit_auth_anthem",
+      "outcome_checks": 17,
+      "process_checks": 6,
+      "reason": "excluded family: primary metric is a conjunction over 9-17 outcome checks (median 13)"
+    },
+    {
+      "id": "fax-easy-1",
+      "family": "fax-easy",
+      "difficulty": "easy",
+      "category": null,
+      "outcome_checks": 7,
+      "process_checks": 0,
+      "reason": "no deterministic process check; the process cell would be undefined"
+    },
+    {
+      "id": "fax-easy-2",
+      "family": "fax-easy",
+      "difficulty": "easy",
+      "category": null,
+      "outcome_checks": 7,
+      "process_checks": 0,
+      "reason": "no deterministic process check; the process cell would be undefined"
+    },
+    {
+      "id": "fax-easy-3",
+      "family": "fax-easy",
+      "difficulty": "easy",
+      "category": null,
+      "outcome_checks": 7,
+      "process_checks": 0,
+      "reason": "no deterministic process check; the process cell would be undefined"
+    },
+    {
+      "id": "fax-easy-4",
+      "family": "fax-easy",
+      "difficulty": "easy",
+      "category": null,
+      "outcome_checks": 7,
+      "process_checks": 0,
+      "reason": "no deterministic process check; the process cell would be undefined"
+    },
+    {
+      "id": "fax-easy-5",
+      "family": "fax-easy",
+      "difficulty": "easy",
+      "category": null,
+      "outcome_checks": 7,
+      "process_checks": 0,
+      "reason": "no deterministic process check; the process cell would be undefined"
+    },
+    {
+      "id": "fax-medium-1",
+      "family": "fax-medium",
+      "difficulty": "medium",
+      "category": null,
+      "outcome_checks": 8,
+      "process_checks": 0,
+      "reason": "no deterministic process check; the process cell would be undefined"
+    },
+    {
+      "id": "fax-medium-2",
+      "family": "fax-medium",
+      "difficulty": "medium",
+      "category": null,
+      "outcome_checks": 8,
+      "process_checks": 0,
+      "reason": "no deterministic process check; the process cell would be undefined"
+    },
+    {
+      "id": "fax-medium-3",
+      "family": "fax-medium",
+      "difficulty": "medium",
+      "category": null,
+      "outcome_checks": 10,
+      "process_checks": 0,
+      "reason": "outcome checks 10 outside [2, 8]"
+    },
+    {
+      "id": "fax-medium-4",
+      "family": "fax-medium",
+      "difficulty": "medium",
+      "category": null,
+      "outcome_checks": 9,
+      "process_checks": 0,
+      "reason": "outcome checks 9 outside [2, 8]"
+    },
+    {
+      "id": "fax-medium-5",
+      "family": "fax-medium",
+      "difficulty": "medium",
+      "category": null,
+      "outcome_checks": 9,
+      "process_checks": 0,
+      "reason": "outcome checks 9 outside [2, 8]"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "If you use MedicalHarness, please cite the accompanying preprint."
+title: "MedicalHarness: A Controlled Evaluation of LLMs and Agent Harnesses on Medical Tasks"
+type: software
+authors:
+  - family-names: Wang
+    given-names: Ziqing
+    affiliation: Northwestern University
+  - family-names: Zhao
+    given-names: Lili
+    affiliation: Northwestern University
+  - family-names: Ding
+    given-names: Kaize
+    affiliation: Northwestern University
+repository-code: "https://github.com/REAL-Lab-NU/MedicalHarness"
+url: "https://real-lab-nu.github.io/MedicalHarness/"
+preferred-citation:
+  type: unpublished
+  title: "MedicalHarness: A Controlled Evaluation of LLMs and Agent Harnesses on Medical Tasks"
+  authors:
+    - family-names: Wang
+      given-names: Ziqing
+    - family-names: Zhao
+      given-names: Lili
+    - family-names: Ding
+      given-names: Kaize
+  year: 2026
+  url: "https://real-lab-nu.github.io/MedicalHarness/"

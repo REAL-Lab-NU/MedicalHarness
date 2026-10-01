@@ -1,0 +1,93 @@
+diff --git a/src/harnessbench/runner.py b/src/harnessbench/runner.py
+--- a/src/harnessbench/runner.py
++++ b/src/harnessbench/runner.py
+@@ -1,6 +1,7 @@
+ from __future__ import annotations
+ 
+ import json
++import os
+ import re
+ import subprocess
+ import shutil
+@@ -164,6 +165,43 @@
+     return "unknown-api", ""
+ 
+ 
++
++# ---------------------------------------------------------------------------
++# Submission check (HB_SUBMISSION_CHECK=1): a deterministic artifact check with
++# one follow-up round. The task prompt names the files an answer must be written
++# to ("$WORKSPACE/out/answer.txt", "$WORKSPACE/submission/x.csv"); when the last
++# prompt round ends without one of them, the harness session is resumed once with
++# a short reminder. Off by default so recorded studies are unchanged; the outcome
++# of the check is written to the adapter result metadata either way.
++# ---------------------------------------------------------------------------
++_SUBMISSION_PATH_RE = re.compile(r"\$WORKSPACE/((?:out|submission)/[\w.\-]+(?:/[\w.\-]+)*)")
++
++
++def expected_submissions(task: TaskSpec, prompt_names: list[str]) -> list[str]:
++    """Workspace-relative files the prompts ask the agent to write, in prompt order, deduplicated."""
++    assert task.task_dir is not None
++    seen: list[str] = []
++    for name in prompt_names:
++        text = (task.task_dir / name).read_text(encoding="utf-8")
++        for rel in _SUBMISSION_PATH_RE.findall(text):
++            if rel not in seen:
++                seen.append(rel)
++    return seen
++
++
++def missing_submissions(workspace: Path, expected: list[str]) -> list[str]:
++    return [rel for rel in expected
++            if not (workspace / rel).is_file() or (workspace / rel).stat().st_size == 0]
++
++
++def submission_reminder(workspace: Path, missing: list[str]) -> str:
++    listed = "\n".join(f"  {workspace / rel}" for rel in missing)
++    return ("Submission check: the task requires the following file(s), which do not exist or are empty:\n"
++            f"{listed}\n"
++            "Write your final answer to each of them now, in exactly the format the task specified. "
++            "Do not start the task over and do not do anything else.")
++
++
+ def render_prompt_file(task: TaskSpec, prompt_name: str, workspace: Path, runtime_env: dict[str, str], adapter_name) -> str:
+     assert task.task_dir is not None
+     prompt_template = (task.task_dir / prompt_name).read_text(encoding="utf-8")
+@@ -602,6 +640,37 @@
+                             runtime_env[key] = value
+             if not adapter_result.ok:
+                 break
++        else:
++            # Every prompt round finished. With the check enabled and an artifact missing, resume
++            # the same session once with the reminder; the adapter sees an ordinary extra round.
++            check_enabled = os.environ.get("HB_SUBMISSION_CHECK", "").strip() in ("1", "true", "yes")
++            expected = expected_submissions(task, prompt_names)
++            missing = missing_submissions(workspace, expected) if expected else []
++            check_meta: dict[str, Any] = {"enabled": check_enabled, "expected": expected,
++                                          "missing_after_task": missing, "reminder_round": False}
++            if check_enabled and missing:
++                round_index = len(prompt_names)
++                prompt = submission_reminder(workspace, missing)
++                prompt_file = sandbox / f"prompt-round{round_index + 1}.txt"
++                prompt_file.write_text(prompt, encoding="utf-8")
++                ctx = AdapterRunContext(
++                    task=task, workspace=workspace, sandbox=sandbox, prompt=prompt, prompt_file=prompt_file,
++                    session_id=session_id,
++                    timeout_sec=int(model_cfg.get("timeout_sec", task.timeout_sec or app.default_timeout_sec)),
++                    env=runtime_env, model_id=model_id, model_config=model_cfg, mode=mode,
++                )
++                try:
++                    reminder_result = adapter.run(ctx)
++                except subprocess.TimeoutExpired as exc:
++                    reminder_result = AdapterRunResult(
++                        ok=False, command=list(getattr(exc, "cmd", []) or []), stdout="",
++                        stderr=f"reminder round exceeded timeout_sec={ctx.timeout_sec}",
++                        metadata={"timed_out": True, "timeout_sec": ctx.timeout_sec})
++                adapter_results.append(reminder_result)
++                check_meta.update(reminder_round=True, reminder_ok=reminder_result.ok,
++                                  missing_after_reminder=missing_submissions(workspace, expected))
++                # The task rounds decide ok/failure; the reminder only annotates.
++            adapter_result.metadata = dict(adapter_result.metadata or {}, submission_check=check_meta)
+ 
+     assert adapter_result is not None
+     usage_summary = _collect_proxy_usage_summary(proxy_log, session_id)

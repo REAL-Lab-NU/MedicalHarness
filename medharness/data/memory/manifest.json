@@ -1,0 +1,38 @@
+{
+  "name": "memory",
+  "bench": "memory",
+  "axis": "long_term_memory",
+  "version": "v2",
+  "item_count": 23,
+  "licence": {
+    "items": "Upstream README states CC BY 4.0, while dataset-card license statements differ. Only provenance metadata and content hashes are distributed here.",
+    "materials": "Longitudinal charts, questions and answers are supplied separately under their applicable upstream terms.",
+    "data_root_only": [
+      "samples.jsonl",
+      "gold.jsonl"
+    ]
+  },
+  "upstream": {
+    "source": {
+      "name": "MedMemoryBench",
+      "url": "https://github.com/AQ-MedAI/MedMemoryBench.git",
+      "commit": "8d708070d0dfe017676947b33d65c43302c79034"
+    }
+  },
+  "content_sha256_samples": "7c2da097bc6ed6c219263a9b354dc32d9793b385efe315ae47e665daa1501dd3",
+  "content_sha256_gold": "7914a368a72f0aefd42a64d9ae24c880c6cc6d1e715dbdd90367728a9e46c81a",
+  "data_root": {
+    "env_var": "MEDMEMORY_DATA_ROOT",
+    "must_contain": [
+      "samples.jsonl",
+      "gold.jsonl"
+    ],
+    "format_documentation": "docs/data.md"
+  },
+  "counts": {
+    "item_count": 23,
+    "distinct_personas": 14,
+    "distinct_contexts": 20
+  },
+  "schema": "medicalharness-bench-package-v1"
+}

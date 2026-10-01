@@ -1,0 +1,85 @@
+diff --git a/src/harnessbench/extract_proxy_trace.py b/src/harnessbench/extract_proxy_trace.py
+index 758be54..d602775 100644
+--- a/src/harnessbench/extract_proxy_trace.py
++++ b/src/harnessbench/extract_proxy_trace.py
+@@ -28,8 +28,53 @@ def _normalize_content(content: Any) -> str:
+     return str(content)
+ 
+ 
++def _split_anthropic_blocks(content: Any) -> tuple[str, list[dict[str, Any]]]:
++    """Separate an Anthropic content list into its text and its tool results.
++
++    In the OpenAI shapes a tool result arrives as its own ``role: "tool"``
++    message, which this extractor keeps. Anthropic's ``/v1/messages`` instead
++    carries it as a ``tool_result`` block inside the *user* turn, and
++    ``_normalize_content`` keeps only blocks with a ``text`` key, so every tool
++    result used to vanish and the turn collapsed to an empty string. The
++    process judge then saw a run with no tool use at all and scored every
++    dimension zero, on every benchmark, for any harness speaking that protocol.
++
++    Returning the results separately lets the caller re-emit them as
++    ``role: "tool"`` messages, which is the same view the OpenAI path already
++    produces. ``tool_use`` blocks are deliberately not rendered into the
++    assistant text: the OpenAI path drops the assistant's ``tool_calls`` from
++    the request messages too, and the two protocols have to reach the judge
++    looking alike or the comparison measures the extractor.
++    """
++    if not isinstance(content, list):
++        return _normalize_content(content), []
++    text_parts: list[str] = []
++    results: list[dict[str, Any]] = []
++    for part in content:
++        if isinstance(part, str):
++            text_parts.append(part)
++            continue
++        if not isinstance(part, dict):
++            continue
++        kind = part.get("type")
++        if kind == "tool_result":
++            results.append(part)
++        elif kind == "tool_use":
++            continue
++        elif kind == "text" and "text" in part:
++            text_parts.append(str(part["text"]))
++        elif "text" in part:
++            text_parts.append(str(part["text"]))
++    return "\n".join(text_parts), results
++
++
+ def extract_request_messages_no_system(request_body: str) -> list[dict[str, str]]:
+-    """解析 chat completions body，丢弃 system，仅保留 user/assistant（及 tool 若存在可跳过，通常在上游消息里）。"""
++    """解析 chat completions body，丢弃 system，仅保留 user/assistant（及 tool 若存在可跳过，通常在上游消息里）。
++
++    Anthropic ``tool_result`` blocks are lifted out of their user turn and
++    re-emitted as ``role: "tool"`` messages so both protocols reach the process
++    judge in the same shape.
++    """
+     try:
+         data = json.loads(request_body)
+     except json.JSONDecodeError:
+@@ -46,11 +91,20 @@ def extract_request_messages_no_system(request_body: str) -> list[dict[str, str]
+             continue
+         if role not in ("user", "assistant", "tool"):
+             continue
+-        text = _normalize_content(m.get("content"))
+-        item: dict[str, str] = {"role": role, "content": text}
+-        if role == "tool" and m.get("tool_call_id"):
+-            item["tool_call_id"] = str(m.get("tool_call_id", ""))
+-        out.append(item)
++        text, tool_results = _split_anthropic_blocks(m.get("content"))
++        if text or not tool_results:
++            item: dict[str, str] = {"role": role, "content": text}
++            if role == "tool" and m.get("tool_call_id"):
++                item["tool_call_id"] = str(m.get("tool_call_id", ""))
++            out.append(item)
++        for block in tool_results:
++            result: dict[str, str] = {
++                "role": "tool",
++                "content": _normalize_content(block.get("content")),
++            }
++            if block.get("tool_use_id"):
++                result["tool_call_id"] = str(block.get("tool_use_id"))
++            out.append(result)
+     return out
+ 
+ 

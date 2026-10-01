@@ -1,0 +1,51 @@
+{
+  "name": "calc",
+  "bench": "calc",
+  "axis": "tool_use",
+  "version": "medmcp-calc-agentic32-v0.1",
+  "item_count": 32,
+  "licence": {
+    "items": "MIT for the upstream task definitions.",
+    "materials": {
+      "mcp_server_code": "MIT for upstream MedMCP-Calc server code.",
+      "ehr_database": "The upstream EHR database includes MIMIC-IV-derived material governed by PhysioNet data-use terms. It is not included.",
+      "sqlite_fixture": "Generated from the distributed task inputs for each exported task. The upstream EHR database is not required."
+    }
+  },
+  "upstream": {
+    "source": {
+      "repo": "https://github.com/SPIRAL-MED/MedMCP-Calc.git",
+      "commit": "81f3ff2bd603de10ccef55d73c0c2e91181514d9",
+      "upstream_tasks_jsonl_sha256": "0f5c8d577d9f80795621a14c7db9c16371bc9d370b5dcf769814534cc19d68f8",
+      "upstream_task_count": 118,
+      "release_tasks_jsonl_sha256": "d5277b4b5cd8976dbbce026adc7fd4810eb48670d937f0e4308fcc728510fc5f",
+      "release_path": "release/medmcp-calc-agentic32-v0.1/tasks.jsonl"
+    }
+  },
+  "content_sha256_samples": "4b7b2e8619e23c153c3392bcf7f55c24524560dd3691001e9819522d92330eb8",
+  "content_sha256_gold": "9f7a90204717ca5f3350d884d4c9f6752d859b9d08844c8064b85eec8ffc2637",
+  "data_root": {
+    "fixture_route": "No external dataset or database is required to export the distributed task definitions."
+  },
+  "counts": {
+    "item_count": 32,
+    "calculator_output_count": 239
+  },
+  "schema": "medicalharness-bench-package-v1",
+  "scoring": {
+    "implementation": "medharness.scorers.calc.score_prediction",
+    "value_accuracy_denominator": "all_gold_outputs",
+    "abstentions": "Missing or unsubmitted required outputs count as incorrect.",
+    "numeric_tolerance": {
+      "relative": 0.02,
+      "absolute_floor": 0.1
+    },
+    "name_matching": {
+      "primary": "Normalized names, aliases and token overlap.",
+      "selection": "Selection precision, recall and F1 are computed over distinct calculator types."
+    },
+    "episode_protocol": "Repeated calculator applications are matched by episode_id. Protocol-strict success requires every required episode to be matched.",
+    "complete_chain": "Every required calculator output must be correct.",
+    "llm_judge": false
+  }
+}

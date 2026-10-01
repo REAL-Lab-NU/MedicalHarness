@@ -1,0 +1,815 @@
+{
+  "version": "healthagent-subset-v1",
+  "rule": {
+    "criterion": "descriptors.offline_runnable_now",
+    "uses_no_observed_outcome": true,
+    "note": "availability, not selection: the other 26 need gated credentials the package records but does not hold"
+  },
+  "n": 28,
+  "task_ids": [
+    "clinical_trial_matching_task_19",
+    "clinical_trial_matching_task_26",
+    "clinical_trial_matching_task_27",
+    "clinical_trial_matching_task_29",
+    "clinical_trial_matching_task_35",
+    "clinical_trial_matching_task_45",
+    "clinical_trial_matching_task_6",
+    "clinical_trial_matching_task_75",
+    "clinical_trial_matching_task_8",
+    "ehr_data_quality_task_combined",
+    "ehr_data_quality_task_combined_clues",
+    "ehr_data_quality_task_demographic_conflict",
+    "ehr_data_quality_task_demographic_conflict_clues",
+    "ehr_data_quality_task_impossible_value",
+    "ehr_data_quality_task_impossible_value_clues",
+    "ehr_data_quality_task_inconsistency",
+    "ehr_data_quality_task_inconsistency_clues",
+    "ehr_to_meds_etl",
+    "tumor_area_selection_pathology_slide_0001",
+    "tumor_area_selection_pathology_slide_0002",
+    "tumor_area_selection_pathology_slide_0003",
+    "tumor_area_selection_pathology_slide_0004",
+    "tumor_area_selection_pathology_slide_0005",
+    "tumor_area_selection_pathology_slide_0006",
+    "tumor_area_selection_pathology_slide_0007",
+    "tumor_area_selection_pathology_slide_0008",
+    "tumor_area_selection_pathology_slide_0009",
+    "tumor_area_selection_pathology_slide_0010"
+  ],
+  "tasks": [
+    {
+      "id": "clinical_trial_matching_task_19",
+      "family": "clinical_trial_matching",
+      "tier": "public_hard",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 2048,
+        "storage_mb": 4096,
+        "gpus": 0
+      },
+      "credentials_required": []
+    },
+    {
+      "id": "clinical_trial_matching_task_26",
+      "family": "clinical_trial_matching",
+      "tier": "public_hard",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 2048,
+        "storage_mb": 4096,
+        "gpus": 0
+      },
+      "credentials_required": []
+    },
+    {
+      "id": "clinical_trial_matching_task_27",
+      "family": "clinical_trial_matching",
+      "tier": "public_hard",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 2048,
+        "storage_mb": 4096,
+        "gpus": 0
+      },
+      "credentials_required": []
+    },
+    {
+      "id": "clinical_trial_matching_task_29",
+      "family": "clinical_trial_matching",
+      "tier": "public_hard",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 2048,
+        "storage_mb": 4096,
+        "gpus": 0
+      },
+      "credentials_required": []
+    },
+    {
+      "id": "clinical_trial_matching_task_35",
+      "family": "clinical_trial_matching",
+      "tier": "public_hard",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 2048,
+        "storage_mb": 4096,
+        "gpus": 0
+      },
+      "credentials_required": []
+    },
+    {
+      "id": "clinical_trial_matching_task_45",
+      "family": "clinical_trial_matching",
+      "tier": "public_hard",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 2048,
+        "storage_mb": 4096,
+        "gpus": 0
+      },
+      "credentials_required": []
+    },
+    {
+      "id": "clinical_trial_matching_task_6",
+      "family": "clinical_trial_matching",
+      "tier": "public_hard",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 2048,
+        "storage_mb": 4096,
+        "gpus": 0
+      },
+      "credentials_required": []
+    },
+    {
+      "id": "clinical_trial_matching_task_75",
+      "family": "clinical_trial_matching",
+      "tier": "public_hard",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 2048,
+        "storage_mb": 4096,
+        "gpus": 0
+      },
+      "credentials_required": []
+    },
+    {
+      "id": "clinical_trial_matching_task_8",
+      "family": "clinical_trial_matching",
+      "tier": "public_hard",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 2048,
+        "storage_mb": 4096,
+        "gpus": 0
+      },
+      "credentials_required": []
+    },
+    {
+      "id": "ehr_data_quality_task_combined",
+      "family": "ehr_data_quality",
+      "tier": "public_hard",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 4096,
+        "storage_mb": 10240,
+        "gpus": 0
+      },
+      "credentials_required": []
+    },
+    {
+      "id": "ehr_data_quality_task_combined_clues",
+      "family": "ehr_data_quality",
+      "tier": "public_control",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 4096,
+        "storage_mb": 10240,
+        "gpus": 0
+      },
+      "credentials_required": []
+    },
+    {
+      "id": "ehr_data_quality_task_demographic_conflict",
+      "family": "ehr_data_quality",
+      "tier": "public_hard",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 4096,
+        "storage_mb": 10240,
+        "gpus": 0
+      },
+      "credentials_required": []
+    },
+    {
+      "id": "ehr_data_quality_task_demographic_conflict_clues",
+      "family": "ehr_data_quality",
+      "tier": "public_control",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 4096,
+        "storage_mb": 10240,
+        "gpus": 0
+      },
+      "credentials_required": []
+    },
+    {
+      "id": "ehr_data_quality_task_impossible_value",
+      "family": "ehr_data_quality",
+      "tier": "public_hard",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 4096,
+        "storage_mb": 10240,
+        "gpus": 0
+      },
+      "credentials_required": []
+    },
+    {
+      "id": "ehr_data_quality_task_impossible_value_clues",
+      "family": "ehr_data_quality",
+      "tier": "public_control",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 4096,
+        "storage_mb": 10240,
+        "gpus": 0
+      },
+      "credentials_required": []
+    },
+    {
+      "id": "ehr_data_quality_task_inconsistency",
+      "family": "ehr_data_quality",
+      "tier": "public_hard",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 4096,
+        "storage_mb": 10240,
+        "gpus": 0
+      },
+      "credentials_required": []
+    },
+    {
+      "id": "ehr_data_quality_task_inconsistency_clues",
+      "family": "ehr_data_quality",
+      "tier": "public_control",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 4096,
+        "storage_mb": 10240,
+        "gpus": 0
+      },
+      "credentials_required": []
+    },
+    {
+      "id": "ehr_to_meds_etl",
+      "family": "ehr_to_meds_etl",
+      "tier": "public_control",
+      "resources": {
+        "cpus": 4,
+        "memory_mb": 8192,
+        "storage_mb": 20480,
+        "gpus": 0
+      },
+      "credentials_required": []
+    },
+    {
+      "id": "tumor_area_selection_pathology_slide_0001",
+      "family": "tumor_area_selection_pathology",
+      "tier": "public_hard",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 8192,
+        "storage_mb": 20480,
+        "gpus": 0
+      },
+      "credentials_required": []
+    },
+    {
+      "id": "tumor_area_selection_pathology_slide_0002",
+      "family": "tumor_area_selection_pathology",
+      "tier": "public_hard",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 8192,
+        "storage_mb": 20480,
+        "gpus": 0
+      },
+      "credentials_required": []
+    },
+    {
+      "id": "tumor_area_selection_pathology_slide_0003",
+      "family": "tumor_area_selection_pathology",
+      "tier": "public_hard",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 8192,
+        "storage_mb": 20480,
+        "gpus": 0
+      },
+      "credentials_required": []
+    },
+    {
+      "id": "tumor_area_selection_pathology_slide_0004",
+      "family": "tumor_area_selection_pathology",
+      "tier": "public_hard",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 8192,
+        "storage_mb": 20480,
+        "gpus": 0
+      },
+      "credentials_required": []
+    },
+    {
+      "id": "tumor_area_selection_pathology_slide_0005",
+      "family": "tumor_area_selection_pathology",
+      "tier": "public_hard",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 8192,
+        "storage_mb": 20480,
+        "gpus": 0
+      },
+      "credentials_required": []
+    },
+    {
+      "id": "tumor_area_selection_pathology_slide_0006",
+      "family": "tumor_area_selection_pathology",
+      "tier": "public_hard",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 8192,
+        "storage_mb": 20480,
+        "gpus": 0
+      },
+      "credentials_required": []
+    },
+    {
+      "id": "tumor_area_selection_pathology_slide_0007",
+      "family": "tumor_area_selection_pathology",
+      "tier": "public_hard",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 8192,
+        "storage_mb": 20480,
+        "gpus": 0
+      },
+      "credentials_required": []
+    },
+    {
+      "id": "tumor_area_selection_pathology_slide_0008",
+      "family": "tumor_area_selection_pathology",
+      "tier": "public_hard",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 8192,
+        "storage_mb": 20480,
+        "gpus": 0
+      },
+      "credentials_required": []
+    },
+    {
+      "id": "tumor_area_selection_pathology_slide_0009",
+      "family": "tumor_area_selection_pathology",
+      "tier": "public_hard",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 8192,
+        "storage_mb": 20480,
+        "gpus": 0
+      },
+      "credentials_required": []
+    },
+    {
+      "id": "tumor_area_selection_pathology_slide_0010",
+      "family": "tumor_area_selection_pathology",
+      "tier": "public_hard",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 8192,
+        "storage_mb": 20480,
+        "gpus": 0
+      },
+      "credentials_required": []
+    }
+  ],
+  "families": {
+    "clinical_trial_matching": 9,
+    "ehr_data_quality": 8,
+    "ehr_to_meds_etl": 1,
+    "tumor_area_selection_pathology": 10
+  },
+  "tiers": {
+    "public_hard": 23,
+    "public_control": 5
+  },
+  "absent_families": [
+    "ct_abnormality",
+    "ehr_event_modelling",
+    "radiology_report"
+  ],
+  "unavailable_count": 26,
+  "unavailable": [
+    {
+      "id": "ct_abnormality_valid_137_a_1",
+      "family": "ct_abnormality",
+      "tier": "gated",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 8192,
+        "storage_mb": 8192,
+        "gpus": 0
+      },
+      "credentials_required": [
+        "HF_TOKEN"
+      ],
+      "reason": "assets/ct_abnormality cache absent; needs HF_TOKEN (CT-RATE OpenRAIL)"
+    },
+    {
+      "id": "ct_abnormality_valid_144_a_1",
+      "family": "ct_abnormality",
+      "tier": "gated",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 8192,
+        "storage_mb": 8192,
+        "gpus": 0
+      },
+      "credentials_required": [
+        "HF_TOKEN"
+      ],
+      "reason": "assets/ct_abnormality cache absent; needs HF_TOKEN (CT-RATE OpenRAIL)"
+    },
+    {
+      "id": "ct_abnormality_valid_16_a_1",
+      "family": "ct_abnormality",
+      "tier": "gated",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 8192,
+        "storage_mb": 8192,
+        "gpus": 0
+      },
+      "credentials_required": [
+        "HF_TOKEN"
+      ],
+      "reason": "assets/ct_abnormality cache absent; needs HF_TOKEN (CT-RATE OpenRAIL)"
+    },
+    {
+      "id": "ct_abnormality_valid_265_a_2",
+      "family": "ct_abnormality",
+      "tier": "gated",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 8192,
+        "storage_mb": 8192,
+        "gpus": 0
+      },
+      "credentials_required": [
+        "HF_TOKEN"
+      ],
+      "reason": "assets/ct_abnormality cache absent; needs HF_TOKEN (CT-RATE OpenRAIL)"
+    },
+    {
+      "id": "ct_abnormality_valid_304_a_1",
+      "family": "ct_abnormality",
+      "tier": "gated",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 8192,
+        "storage_mb": 8192,
+        "gpus": 0
+      },
+      "credentials_required": [
+        "HF_TOKEN"
+      ],
+      "reason": "assets/ct_abnormality cache absent; needs HF_TOKEN (CT-RATE OpenRAIL)"
+    },
+    {
+      "id": "ct_abnormality_valid_46_a_1",
+      "family": "ct_abnormality",
+      "tier": "gated",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 8192,
+        "storage_mb": 8192,
+        "gpus": 0
+      },
+      "credentials_required": [
+        "HF_TOKEN"
+      ],
+      "reason": "assets/ct_abnormality cache absent; needs HF_TOKEN (CT-RATE OpenRAIL)"
+    },
+    {
+      "id": "ct_abnormality_valid_481_a_2",
+      "family": "ct_abnormality",
+      "tier": "gated",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 8192,
+        "storage_mb": 8192,
+        "gpus": 0
+      },
+      "credentials_required": [
+        "HF_TOKEN"
+      ],
+      "reason": "assets/ct_abnormality cache absent; needs HF_TOKEN (CT-RATE OpenRAIL)"
+    },
+    {
+      "id": "ct_abnormality_valid_636_a_1",
+      "family": "ct_abnormality",
+      "tier": "gated",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 8192,
+        "storage_mb": 8192,
+        "gpus": 0
+      },
+      "credentials_required": [
+        "HF_TOKEN"
+      ],
+      "reason": "assets/ct_abnormality cache absent; needs HF_TOKEN (CT-RATE OpenRAIL)"
+    },
+    {
+      "id": "ct_abnormality_valid_670_a_1",
+      "family": "ct_abnormality",
+      "tier": "gated",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 8192,
+        "storage_mb": 8192,
+        "gpus": 0
+      },
+      "credentials_required": [
+        "HF_TOKEN"
+      ],
+      "reason": "assets/ct_abnormality cache absent; needs HF_TOKEN (CT-RATE OpenRAIL)"
+    },
+    {
+      "id": "ct_abnormality_valid_81_a_1",
+      "family": "ct_abnormality",
+      "tier": "gated",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 8192,
+        "storage_mb": 8192,
+        "gpus": 0
+      },
+      "credentials_required": [
+        "HF_TOKEN"
+      ],
+      "reason": "assets/ct_abnormality cache absent; needs HF_TOKEN (CT-RATE OpenRAIL)"
+    },
+    {
+      "id": "ehr_event_modelling_new_acutemi",
+      "family": "ehr_event_modelling",
+      "tier": "gated",
+      "resources": {
+        "cpus": 16,
+        "memory_mb": 65536,
+        "storage_mb": 65536,
+        "gpus": 0
+      },
+      "credentials_required": [
+        "REDIVIS_API_TOKEN"
+      ],
+      "reason": "assets/ehr_event_modelling cache absent; needs REDIVIS_API_TOKEN (EHRSHOT)"
+    },
+    {
+      "id": "ehr_event_modelling_new_celiac",
+      "family": "ehr_event_modelling",
+      "tier": "gated",
+      "resources": {
+        "cpus": 16,
+        "memory_mb": 65536,
+        "storage_mb": 65536,
+        "gpus": 0
+      },
+      "credentials_required": [
+        "REDIVIS_API_TOKEN"
+      ],
+      "reason": "assets/ehr_event_modelling cache absent; needs REDIVIS_API_TOKEN (EHRSHOT)"
+    },
+    {
+      "id": "ehr_event_modelling_new_hyperlipidemia",
+      "family": "ehr_event_modelling",
+      "tier": "gated",
+      "resources": {
+        "cpus": 16,
+        "memory_mb": 65536,
+        "storage_mb": 65536,
+        "gpus": 0
+      },
+      "credentials_required": [
+        "REDIVIS_API_TOKEN"
+      ],
+      "reason": "assets/ehr_event_modelling cache absent; needs REDIVIS_API_TOKEN (EHRSHOT)"
+    },
+    {
+      "id": "ehr_event_modelling_new_hypertension",
+      "family": "ehr_event_modelling",
+      "tier": "gated",
+      "resources": {
+        "cpus": 16,
+        "memory_mb": 65536,
+        "storage_mb": 65536,
+        "gpus": 0
+      },
+      "credentials_required": [
+        "REDIVIS_API_TOKEN"
+      ],
+      "reason": "assets/ehr_event_modelling cache absent; needs REDIVIS_API_TOKEN (EHRSHOT)"
+    },
+    {
+      "id": "ehr_event_modelling_new_lupus",
+      "family": "ehr_event_modelling",
+      "tier": "gated",
+      "resources": {
+        "cpus": 16,
+        "memory_mb": 65536,
+        "storage_mb": 65536,
+        "gpus": 0
+      },
+      "credentials_required": [
+        "REDIVIS_API_TOKEN"
+      ],
+      "reason": "assets/ehr_event_modelling cache absent; needs REDIVIS_API_TOKEN (EHRSHOT)"
+    },
+    {
+      "id": "ehr_event_modelling_new_pancan",
+      "family": "ehr_event_modelling",
+      "tier": "gated",
+      "resources": {
+        "cpus": 16,
+        "memory_mb": 65536,
+        "storage_mb": 65536,
+        "gpus": 0
+      },
+      "credentials_required": [
+        "REDIVIS_API_TOKEN"
+      ],
+      "reason": "assets/ehr_event_modelling cache absent; needs REDIVIS_API_TOKEN (EHRSHOT)"
+    },
+    {
+      "id": "xray_report_correction_case_01",
+      "family": "radiology_report",
+      "tier": "gated",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 4096,
+        "storage_mb": 10240,
+        "gpus": 0
+      },
+      "credentials_required": [
+        "PN_USER",
+        "PN_PASS",
+        "OPENAI_API_KEY",
+        "CHEXPROMPT_DEPLOYMENT"
+      ],
+      "reason": "assets/xray_report_correction cache absent; needs PN_USER/PN_PASS + OpenAI judge"
+    },
+    {
+      "id": "xray_report_correction_case_02",
+      "family": "radiology_report",
+      "tier": "gated",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 4096,
+        "storage_mb": 10240,
+        "gpus": 0
+      },
+      "credentials_required": [
+        "PN_USER",
+        "PN_PASS",
+        "OPENAI_API_KEY",
+        "CHEXPROMPT_DEPLOYMENT"
+      ],
+      "reason": "assets/xray_report_correction cache absent; needs PN_USER/PN_PASS + OpenAI judge"
+    },
+    {
+      "id": "xray_report_correction_case_03",
+      "family": "radiology_report",
+      "tier": "gated",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 4096,
+        "storage_mb": 10240,
+        "gpus": 0
+      },
+      "credentials_required": [
+        "PN_USER",
+        "PN_PASS",
+        "OPENAI_API_KEY",
+        "CHEXPROMPT_DEPLOYMENT"
+      ],
+      "reason": "assets/xray_report_correction cache absent; needs PN_USER/PN_PASS + OpenAI judge"
+    },
+    {
+      "id": "xray_report_correction_case_04",
+      "family": "radiology_report",
+      "tier": "gated",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 4096,
+        "storage_mb": 10240,
+        "gpus": 0
+      },
+      "credentials_required": [
+        "PN_USER",
+        "PN_PASS",
+        "OPENAI_API_KEY",
+        "CHEXPROMPT_DEPLOYMENT"
+      ],
+      "reason": "assets/xray_report_correction cache absent; needs PN_USER/PN_PASS + OpenAI judge"
+    },
+    {
+      "id": "xray_report_correction_case_05",
+      "family": "radiology_report",
+      "tier": "gated",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 4096,
+        "storage_mb": 10240,
+        "gpus": 0
+      },
+      "credentials_required": [
+        "PN_USER",
+        "PN_PASS",
+        "OPENAI_API_KEY",
+        "CHEXPROMPT_DEPLOYMENT"
+      ],
+      "reason": "assets/xray_report_correction cache absent; needs PN_USER/PN_PASS + OpenAI judge"
+    },
+    {
+      "id": "xray_report_correction_case_06",
+      "family": "radiology_report",
+      "tier": "gated",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 4096,
+        "storage_mb": 10240,
+        "gpus": 0
+      },
+      "credentials_required": [
+        "PN_USER",
+        "PN_PASS",
+        "OPENAI_API_KEY",
+        "CHEXPROMPT_DEPLOYMENT"
+      ],
+      "reason": "assets/xray_report_correction cache absent; needs PN_USER/PN_PASS + OpenAI judge"
+    },
+    {
+      "id": "xray_report_correction_case_07",
+      "family": "radiology_report",
+      "tier": "gated",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 4096,
+        "storage_mb": 10240,
+        "gpus": 0
+      },
+      "credentials_required": [
+        "PN_USER",
+        "PN_PASS",
+        "OPENAI_API_KEY",
+        "CHEXPROMPT_DEPLOYMENT"
+      ],
+      "reason": "assets/xray_report_correction cache absent; needs PN_USER/PN_PASS + OpenAI judge"
+    },
+    {
+      "id": "xray_report_correction_case_08",
+      "family": "radiology_report",
+      "tier": "gated",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 4096,
+        "storage_mb": 10240,
+        "gpus": 0
+      },
+      "credentials_required": [
+        "PN_USER",
+        "PN_PASS",
+        "OPENAI_API_KEY",
+        "CHEXPROMPT_DEPLOYMENT"
+      ],
+      "reason": "assets/xray_report_correction cache absent; needs PN_USER/PN_PASS + OpenAI judge"
+    },
+    {
+      "id": "xray_report_correction_case_09",
+      "family": "radiology_report",
+      "tier": "gated",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 4096,
+        "storage_mb": 10240,
+        "gpus": 0
+      },
+      "credentials_required": [
+        "PN_USER",
+        "PN_PASS",
+        "OPENAI_API_KEY",
+        "CHEXPROMPT_DEPLOYMENT"
+      ],
+      "reason": "assets/xray_report_correction cache absent; needs PN_USER/PN_PASS + OpenAI judge"
+    },
+    {
+      "id": "xray_report_correction_case_10",
+      "family": "radiology_report",
+      "tier": "gated",
+      "resources": {
+        "cpus": 2,
+        "memory_mb": 4096,
+        "storage_mb": 10240,
+        "gpus": 0
+      },
+      "credentials_required": [
+        "PN_USER",
+        "PN_PASS",
+        "OPENAI_API_KEY",
+        "CHEXPROMPT_DEPLOYMENT"
+      ],
+      "reason": "assets/xray_report_correction cache absent; needs PN_USER/PN_PASS + OpenAI judge"
+    }
+  ]
+}

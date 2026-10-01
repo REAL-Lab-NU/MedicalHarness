@@ -1,0 +1,70 @@
+# ZeroClaw 0.8.5 config for the MedicalHarness study. The harness-bench zeroclaw adapter copies this
+# into the episode sandbox and rewrites [providers.models.openai.vllm].uri to the usage proxy, so the
+# uri here is the upstream model endpoint that the runner fills in.
+schema_version = 3
+
+[providers]
+
+[risk_profiles.default]
+# sqlite3/python/bash must be here: the calc benchmark hands the agent a SQLite database.
+allowed_commands = ["ls","cat","grep","find","head","tail","wc","echo","pwd","cd","python","python3","sqlite3","sed","awk","sort","uniq","cut","tr","xargs","rg","mkdir","cp","mv","test","bash","sh"]
+auto_approve = ["shell", "file_read", "file_write", "file_edit", "glob_search", "content_search"]
+block_high_risk_commands = true
+forbidden_paths = ["/etc", "/root", "/home", "/usr", "/bin", "/sbin", "/lib", "/opt", "/boot", "/dev", "/proc", "/sys", "/var", "/tmp", "~/.ssh", "~/.gnupg", "~/.aws", "~/.config"]
+level = "full"
+require_approval_for_medium_risk = true
+workspace_only = true
+
+[agents.main]
+acp_enable_mcp = false
+delegate_same_risk_profile = true
+enabled = true
+model_provider = "openai.vllm"
+risk_profile = "default"
+# Must reference the runtime profile below, or the iteration cap stays at the default.
+runtime_profile = "default"
+
+[risk_profiles.default.delegation_policy]
+mode = "forbidden"
+
+[providers.models]
+
+[agents.main.a2a]
+published = false
+
+[providers.models.openai]
+
+[agents.main.identity]
+format = "openclaw"
+
+[providers.models.openai.vllm]
+api_key = "not-needed"
+uri = "http://127.0.0.1:__VLLM_PORT__/v1"
+wire_api = "chat_completions"
+model = "qwen36-35b-a3b-260k"
+context_window = 262144
+# Uniform request timeout across every harness in the study (each harness spells the key differently).
+timeout_secs = 1800
+
+[agents]
+
+[agents.main.memory]
+backend = "sqlite"
+
+[agents.main.precheck]
+enabled = true
+timeout_secs = 5
+
+[agents.main.workspace]
+unrestricted_filesystem = false
+
+[risk_profiles]
+
+# ZeroClaw's default max_tool_iterations cuts the agent off after ~11 tool calls and then makes one
+# final LLM call with the tool table stripped ("turn-max-iterations-reached"), which reads as the agent
+# giving up. Every other harness in the study runs at 200-500 turns or unbounded (hermes 500, nanobot 200,
+# claudecode 200, openclaw/codex unlimited), so leaving this at the default was an environment
+# asymmetry of ours, not a property of ZeroClaw: all four benchmarks scored 0.000 / near-0 until this
+# was set (healthadmin went 0.000 -> 0.319). 200 puts it in the same band as the others.
+[runtime_profiles.default]
+max_tool_iterations = 200
