@@ -98,14 +98,3 @@ docs/             installation, data, and usage guides
 ## 📚 Data and attribution
 
 MedicalHarnessBench adapts tasks from MedMCP-Calc, MedMemoryBench, HealthAgentBench, and HealthAdminBench. Upstream code and data retain their original terms. MedMemory chart text is supplied separately. See [data setup](docs/data.md) and [third-party notices](THIRD_PARTY_NOTICES.md).
-
-## 🔖 Citation
-
-```bibtex
-@misc{wang2026medicalharness,
-  title  = {MedicalHarness: A Controlled Evaluation of LLMs and Agent Harnesses on Medical Tasks},
-  author = {Ziqing Wang and Lili Zhao and Kaize Ding},
-  year   = {2026},
-  url    = {https://real-lab-nu.github.io/MedicalHarness/}
-}
-```
