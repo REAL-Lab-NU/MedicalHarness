@@ -4,10 +4,7 @@
 
 **A Controlled Evaluation of LLMs and Agent Harnesses on Medical Tasks**
 
-Ziqing Wang · Lili Zhao · Kaize Ding<br>
-Northwestern University
-
-[🌐 Project page](https://real-lab-nu.github.io/MedicalHarness/) · [⚙️ Installation](docs/environment.md) · [🚀 Run a task](docs/running.md) · [📚 Data setup](docs/data.md)
+[⚙️ Installation](docs/environment.md) · [🚀 Run a task](docs/running.md) · [📚 Data setup](docs/data.md)
 
 ![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
 ![Platform](https://img.shields.io/badge/Platform-Linux-555555?logo=linux&logoColor=white)
