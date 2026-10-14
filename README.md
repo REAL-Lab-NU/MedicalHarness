@@ -33,7 +33,6 @@ Run tasks with **MH-Lab**, **OpenClaw**, **Hermes**, **ZeroClaw**, **Codex**, or
 Use Python 3.11 or later on Linux:
 
 ```bash
-git clone https://github.com/REAL-Lab-NU/MedicalHarness.git
 cd MedicalHarness
 python3 -m venv .venv
 source .venv/bin/activate
