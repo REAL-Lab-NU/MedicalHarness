@@ -35,6 +35,11 @@ def bootstrap(destination, source=HB_REMOTE):
         raise FileExistsError(f'{destination} exists; choose an empty --destination')
     destination.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run(['git', 'clone', '--no-checkout', source, str(destination)], check=True)
+    # Upstream replaced its history on 2026-10-09, so the pinned commit is no longer on any branch
+    # and a plain clone does not contain it. Fetch it by hash when the clone lacks it.
+    pinned = f'{HB_COMMIT}^{{commit}}'
+    if subprocess.run(['git', '-C', str(destination), 'cat-file', '-e', pinned], capture_output=True).returncode:
+        subprocess.run(['git', '-C', str(destination), 'fetch', '--quiet', 'origin', HB_COMMIT], check=True)
     subprocess.run(['git', '-C', str(destination), 'checkout', '--detach', HB_COMMIT], check=True)
     patches = sorted((REPO / 'patches/harness-bench').glob('*.patch'))
     for patch in patches:
