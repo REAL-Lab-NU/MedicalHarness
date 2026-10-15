@@ -6,9 +6,9 @@ index 1da4c10..3b7ae84 100644
      if not bwrap:
          raise RuntimeError("HB_AGENT_ISOLATION=1 requires bubblewrap; refusing unisolated execution")
  
--    repo = Path(settings.get("MEDHARNESS_REPO", "/data/ios4132/projects/MedicalHarness")).resolve()
+-    repo = Path(settings.get("MEDHARNESS_REPO", "/path/to/MedicalHarness")).resolve()
 -    bench = repo.parent / "MedicalHarness-bench"
--    scratch = Path("/scr/ios4132/medharness")
+-    scratch = Path("/path/to/scratch/medharness")
 +    if not settings.get("MEDHARNESS_REPO"):
 +        raise ValueError("MEDHARNESS_REPO must identify the evaluator checkout when isolation is enabled")
 +    repo = Path(settings["MEDHARNESS_REPO"]).resolve()

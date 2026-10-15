@@ -14,7 +14,7 @@
 MedicalHarness studies how the system around an LLM changes its performance on medical tasks. This repository provides **MedicalHarnessBench**, task exporters and scoring, and **MH-Lab**, a configurable agent loop for studying context management, planning, and tool exposure. It also supports five product harnesses through a shared execution backend.
 
 <p align="center">
-  <img src="https://real-lab-nu.github.io/MedicalHarness/assets/overview.png" alt="MedicalHarness benchmark and study overview" width="100%">
+  <img src="docs/assets/overview.png" alt="MedicalHarness benchmark and study overview" width="100%">
 </p>
 
 ## 🩺 Four medical task environments
@@ -30,10 +30,9 @@ Run tasks with **MH-Lab**, **OpenClaw**, **Hermes**, **ZeroClaw**, **Codex**, or
 
 ## 🚀 Quick start
 
-Use Python 3.11 or later on Linux:
+Use Python 3.11 or later on Linux. From the repository root:
 
 ```bash
-cd MedicalHarness
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev]"

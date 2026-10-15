@@ -53,9 +53,9 @@ index 0000000..1da4c10
 +    if not bwrap:
 +        raise RuntimeError("HB_AGENT_ISOLATION=1 requires bubblewrap; refusing unisolated execution")
 +
-+    repo = Path(settings.get("MEDHARNESS_REPO", "/data/ios4132/projects/MedicalHarness")).resolve()
++    repo = Path(settings.get("MEDHARNESS_REPO", "/path/to/MedicalHarness")).resolve()
 +    bench = repo.parent / "MedicalHarness-bench"
-+    scratch = Path("/scr/ios4132/medharness")
++    scratch = Path("/path/to/scratch/medharness")
 +    account_home = Path(pwd.getpwuid(os.getuid()).pw_dir)
 +    sandbox = ctx.sandbox.resolve()
 +    workspace = ctx.workspace.resolve()
